@@ -4,8 +4,9 @@ A live world **threat map** for the [BunkerWeb](https://www.bunkerweb.io) web UI
 
 The map is **fully self‑contained** — the dotted world map and country coordinates are pre‑generated from [Natural Earth](https://www.naturalearthdata.com/) data and embedded in the page. No CDN, no external requests, CSP‑friendly.
 
-> _Screenshots go in `docs/` — drop a `map.png` there and it will render below._
-> <!-- ![Threat map](docs/map.png) -->
+![Threat Map dashboard — live attack map with country drill-down, feed, timeline and statistics](Screenshots/threatMap.png)
+
+<p align="center"><em>Live attack map with an open country drill‑down, real‑time feed, activity timeline and per‑country / per‑reason statistics.</em></p>
 
 ## Features
 
@@ -17,6 +18,14 @@ The map is **fully self‑contained** — the dotted world map and country coord
 - **Replay & Demo** — replay the recorded attacks of the current window, or run a synthetic demo when nothing has been blocked yet.
 - **SOC fullscreen mode** — a wall‑monitor view with overlay stat chips, an embedded feed and auto‑cycling country highlights.
 - **Efficient & resilient** — report fetches are cached briefly and shared across polls, window switches and drill‑downs; animations honour the OS "reduce motion" setting.
+
+## Screenshots
+
+### SOC fullscreen mode
+
+A wall‑monitor view: full‑bleed map, overlay stat chips, a docked live feed and auto‑cycling country highlights.
+
+![Threat Map SOC fullscreen mode](Screenshots/threatMapFullScreen.png)
 
 ## How it works
 
@@ -60,6 +69,10 @@ Then open the web UI → **Plugins → Threat Map**.
 
 Set `THREAT_MAP_HOME_LAT` / `THREAT_MAP_HOME_LON` to your server's location so the arcs converge on the right spot.
 
+All settings are editable from the web UI under **Global Settings → Threat Map**:
+
+![Threat Map settings in the BunkerWeb UI](Screenshots/threatMapSettings.png)
+
 ## Try it locally
 
 A complete test stack (BunkerWeb + scheduler + UI + MariaDB + Redis + syslog collector + a demo backend) lives in [`examples/`](examples/):
@@ -90,6 +103,7 @@ threatmap/            The plugin — drop this folder into /data/plugins
     actions.py        Server-side data aggregation (pre_render + poll action)
     template.html     The map page (self-contained canvas renderer)
 examples/             Local test stack (docker compose) — not shipped with the plugin
+Screenshots/          Images used in this README
 ```
 
 ## License
