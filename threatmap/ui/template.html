@@ -1,0 +1,1774 @@
+{% set tm_data = pre_render.get("data", {}) if pre_render is mapping else {} %}
+{% if pre_render.get("status") != "ok" or tm_data.get("error") %}
+    <div class="mt-2 mb-2 alert alert-danger text-center" role="alert">
+        An error occurred while collecting threat map data{% if tm_data.get("error") %}: {{ tm_data.get("error") }}{% endif %}
+        <br />
+        See logs for more details
+    </div>
+{% endif %}
+<div id="threatmap-root">
+    <input type="hidden" id="threatmap-csrf" value="{{ csrf_token() }}" />
+    <script type="application/json" id="threatmap-bootstrap" nonce="{{ script_nonce }}">{{ tm_data | tojson }}</script>
+    <div class="row g-4">
+        <!-- Stat cards -->
+        <div class="col-6 col-xl-3">
+            <div class="card p-4 position-relative shadow-md rounded-3 h-100">
+                <i class="bx bx-shield-x bx-sm position-absolute top-0 end-0 m-3 text-danger"></i>
+                <div class="card-header p-1">
+                    <div class="card-title mb-0">
+                        <h5 class="mb-1 me-2 don-jose">ATTACKS (24H)</h5>
+                    </div>
+                </div>
+                <div class="card-body position-relative pb-0">
+                    <div class="d-flex align-items-center justify-content-center h-100">
+                        <p class="tm-counter mb-0" id="tm-count-24h">0</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-xl-3">
+            <div class="card p-4 position-relative shadow-md rounded-3 h-100">
+                <i class="bx bx-target-lock bx-sm position-absolute top-0 end-0 m-3 text-warning"></i>
+                <div class="card-header p-1">
+                    <div class="card-title mb-0">
+                        <h5 class="mb-1 me-2 don-jose">UNIQUE IPS (24H)</h5>
+                    </div>
+                </div>
+                <div class="card-body position-relative pb-0">
+                    <div class="d-flex align-items-center justify-content-center h-100">
+                        <p class="tm-counter mb-0" id="tm-count-ips">0</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-xl-3">
+            <div class="card p-4 position-relative shadow-md rounded-3 h-100">
+                <i class="bx bx-globe bx-sm position-absolute top-0 end-0 m-3 text-primary"></i>
+                <div class="card-header p-1">
+                    <div class="card-title mb-0">
+                        <h5 class="mb-1 me-2 don-jose">TOP ORIGIN</h5>
+                    </div>
+                </div>
+                <div class="card-body position-relative pb-0">
+                    <div class="d-flex align-items-center justify-content-center h-100">
+                        <p class="tm-counter mb-0" id="tm-top-origin">－</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-xl-3">
+            <div class="card p-4 position-relative shadow-md rounded-3 h-100">
+                <i class="bx bx-broadcast bx-sm position-absolute top-0 end-0 m-3 text-success"></i>
+                <div class="card-header p-1">
+                    <div class="card-title mb-0">
+                        <h5 class="mb-1 me-2 don-jose">TRACKED EVENTS</h5>
+                    </div>
+                </div>
+                <div class="card-body position-relative pb-0">
+                    <div class="d-flex flex-column align-items-center justify-content-center h-100">
+                        <p class="tm-counter mb-0" id="tm-count-total">0</p>
+                        <small class="text-muted" id="tm-window-label">entire buffer</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Map -->
+        <div class="col-12 col-xxl-9">
+            <div class="card p-4 position-relative shadow-md rounded-3 h-100 tm-map-card" id="tm-map-card">
+                <div class="card-header p-1 d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <div class="card-title mb-0 d-flex align-items-center">
+                        <h5 class="mb-0 me-3 don-jose tm-map-title">
+                            <i class="bx bx-globe me-1"></i>LIVE ATTACK MAP
+                        </h5>
+                        <span class="tm-live-badge" id="tm-live-badge"><span class="tm-live-dot"></span><span id="tm-live-text">LIVE</span></span>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <div class="btn-group btn-group-sm tm-range" role="group" aria-label="Time window">
+                            <button type="button" class="btn btn-outline-secondary tm-range-btn" data-window="3600">1H</button>
+                            <button type="button" class="btn btn-outline-secondary tm-range-btn" data-window="86400">24H</button>
+                            <button type="button" class="btn btn-outline-secondary tm-range-btn" data-window="604800">7D</button>
+                            <button type="button" class="btn btn-outline-secondary tm-range-btn active" data-window="0">ALL</button>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-primary rounded-pill" id="tm-replay-btn" title="Replay the recorded attacks of the selected window">
+                            <i class="bx bx-revision"></i>&nbsp;Replay
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-success rounded-pill" id="tm-demo-btn">
+                            <i class="bx bx-play-circle"></i>&nbsp;Demo
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-light rounded-pill" id="tm-fs-btn" title="SOC fullscreen mode">
+                            <i class="bx bx-fullscreen"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body p-0 mt-2 d-flex flex-column">
+                    <div class="tm-canvas-wrap" id="tm-canvas-wrap">
+                        <canvas id="tm-canvas-base"></canvas>
+                        <canvas id="tm-canvas-fx"></canvas>
+                        <div class="tm-empty d-none" id="tm-empty">
+                            <i class="bx bx-check-shield"></i>
+                            <p>No blocked requests recorded yet.<br />The map will come alive as soon as attacks are detected.</p>
+                        </div>
+                        <div class="tm-legend" id="tm-legend"></div>
+                        <div class="tm-fs-chips d-none" id="tm-fs-chips"></div>
+                        <div class="tm-fs-feed d-none" id="tm-fs-feed">
+                            <p class="tm-fs-feed-title don-jose">ATTACK FEED</p>
+                            <div id="tm-fs-feed-holder"></div>
+                        </div>
+                        <div class="tm-drill d-none" id="tm-drill">
+                            <button type="button" class="btn-close btn-close-white tm-drill-close" id="tm-drill-close" aria-label="Close"></button>
+                            <div id="tm-drill-content"></div>
+                        </div>
+                        <div class="tm-toast d-none" id="tm-toast"></div>
+                    </div>
+                    <div class="tm-timeline-wrap">
+                        <canvas id="tm-timeline"></canvas>
+                        <div class="tm-timeline-labels">
+                            <span id="tm-tl-start"></span>
+                            <span class="tm-tl-caption">ATTACKS / INTERVAL</span>
+                            <span id="tm-tl-end"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Live feed -->
+        <div class="col-12 col-xxl-3">
+            <div class="card p-4 position-relative shadow-md rounded-3 h-100">
+                <i class="bx bx-list-ul bx-sm position-absolute top-0 end-0 m-3 text-primary"></i>
+                <div class="card-header p-1">
+                    <div class="card-title mb-0">
+                        <h5 class="mb-1 me-2 don-jose">ATTACK FEED</h5>
+                    </div>
+                </div>
+                <div class="card-body p-0 mt-2" id="tm-feed-home">
+                    <ul class="tm-feed list-unstyled mb-0" id="tm-feed"></ul>
+                </div>
+            </div>
+        </div>
+        <!-- Top countries -->
+        <div class="col-12 col-md-6">
+            <div class="card p-4 position-relative shadow-md rounded-3 h-100">
+                <i class="bx bx-flag bx-sm position-absolute top-0 end-0 m-3 text-danger"></i>
+                <div class="card-header p-1">
+                    <div class="card-title mb-0">
+                        <h5 class="mb-1 me-2 don-jose">TOP ATTACKING COUNTRIES</h5>
+                        <small class="text-muted">click a country for details &amp; bans</small>
+                    </div>
+                </div>
+                <div class="card-body p-0 mt-3">
+                    <div id="tm-top-countries"></div>
+                </div>
+            </div>
+        </div>
+        <!-- Top reasons -->
+        <div class="col-12 col-md-6">
+            <div class="card p-4 position-relative shadow-md rounded-3 h-100">
+                <i class="bx bx-shield-quarter bx-sm position-absolute top-0 end-0 m-3 text-warning"></i>
+                <div class="card-header p-1">
+                    <div class="card-title mb-0">
+                        <h5 class="mb-1 me-2 don-jose">BLOCK REASONS</h5>
+                    </div>
+                </div>
+                <div class="card-body p-0 mt-3">
+                    <div id="tm-top-reasons"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<style nonce="{{ style_nonce }}">
+  #threatmap-root .tm-counter {
+    font-family: "Courier Prime", monospace;
+    font-size: 1.65rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+  }
+
+  #threatmap-root .tm-map-card {
+    background: linear-gradient(160deg, #060f18 0%, #0a2136 55%, #0b354a 130%);
+    border: 1px solid rgba(46, 172, 104, 0.18);
+    display: flex;
+    flex-direction: column;
+  }
+
+  #threatmap-root .tm-map-card .tm-map-title {
+    color: #d9ecf7;
+  }
+
+  #threatmap-root .tm-map-card .tm-range .btn {
+    font-family: "Courier Prime", monospace;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: #9db8cc;
+    border-color: rgba(157, 184, 204, 0.35);
+  }
+
+  #threatmap-root .tm-map-card .tm-range .btn.active {
+    background-color: rgba(46, 172, 104, 0.25);
+    color: #2eac68;
+    border-color: rgba(46, 172, 104, 0.6);
+  }
+
+  #threatmap-root .tm-canvas-wrap {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 2.2 / 1;
+    min-height: 260px;
+    overflow: hidden;
+    border-radius: 0.5rem;
+    cursor: crosshair;
+  }
+
+  #threatmap-root .tm-canvas-wrap canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  #threatmap-root .tm-live-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-family: "Courier Prime", monospace;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    color: #2eac68;
+    border: 1px solid rgba(46, 172, 104, 0.45);
+    border-radius: 999px;
+    padding: 0.1rem 0.6rem;
+  }
+
+  #threatmap-root .tm-live-badge.tm-alt {
+    color: #ff9f43;
+    border-color: rgba(255, 159, 67, 0.55);
+  }
+
+  #threatmap-root .tm-live-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+    animation: tm-pulse 1.4s ease-out infinite;
+  }
+
+  @keyframes tm-pulse {
+    0% { box-shadow: 0 0 0 0 rgba(46, 172, 104, 0.55); }
+    100% { box-shadow: 0 0 0 8px rgba(46, 172, 104, 0); }
+  }
+
+  #threatmap-root .tm-legend {
+    position: absolute;
+    left: 0.75rem;
+    bottom: 0.6rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.9rem;
+    pointer-events: none;
+  }
+
+  #threatmap-root .tm-legend .tm-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-family: "Courier Prime", monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.06em;
+    color: #9db8cc;
+    text-transform: uppercase;
+  }
+
+  #threatmap-root .tm-legend .tm-legend-swatch {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  #threatmap-root .tm-empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: #7fa6c0;
+    pointer-events: none;
+  }
+
+  #threatmap-root .tm-empty i {
+    font-size: 2.4rem;
+    color: #2eac68;
+    margin-bottom: 0.5rem;
+  }
+
+  /* Timeline */
+  #threatmap-root .tm-timeline-wrap {
+    margin-top: 0.5rem;
+  }
+
+  #threatmap-root .tm-timeline-wrap canvas {
+    display: block;
+    width: 100%;
+    height: 44px;
+  }
+
+  #threatmap-root .tm-timeline-labels {
+    display: flex;
+    justify-content: space-between;
+    font-family: "Courier Prime", monospace;
+    font-size: 0.62rem;
+    letter-spacing: 0.08em;
+    color: #7fa6c0;
+    margin-top: 0.15rem;
+  }
+
+  /* Feed */
+  #threatmap-root .tm-feed {
+    max-height: 560px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
+
+  #threatmap-root .tm-feed li {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.45rem 0.25rem;
+    border-bottom: 1px dashed rgba(128, 148, 168, 0.25);
+    animation: tm-feed-in 0.35s ease-out;
+  }
+
+  @keyframes tm-feed-in {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: none; }
+  }
+
+  #threatmap-root .tm-feed .tm-feed-ip {
+    font-family: "Courier Prime", monospace;
+    font-size: 0.8rem;
+    font-weight: 700;
+  }
+
+  #threatmap-root .tm-feed .tm-feed-meta {
+    font-size: 0.7rem;
+    opacity: 0.65;
+  }
+
+  #threatmap-root .tm-feed .tm-feed-reason {
+    margin-left: auto;
+    font-family: "Courier Prime", monospace;
+    font-size: 0.64rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    border-radius: 999px;
+    padding: 0.08rem 0.5rem;
+    color: #06121c;
+    white-space: nowrap;
+  }
+
+  #threatmap-root .tm-feed img {
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  /* Bars */
+  #threatmap-root .tm-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 0.55rem;
+  }
+
+  #threatmap-root .tm-bar-row.tm-clickable {
+    cursor: pointer;
+    border-radius: 0.35rem;
+    padding: 0.15rem 0.3rem;
+  }
+
+  #threatmap-root .tm-bar-row.tm-clickable:hover {
+    background: rgba(46, 172, 104, 0.12);
+  }
+
+  #threatmap-root .tm-bar-label {
+    font-family: "Courier Prime", monospace;
+    font-size: 0.78rem;
+    font-weight: 700;
+    min-width: 3.2rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  #threatmap-root .tm-bar-label.tm-bar-label-wide {
+    min-width: 9rem;
+    text-transform: uppercase;
+    font-size: 0.7rem;
+  }
+
+  #threatmap-root .tm-bar-track {
+    flex-grow: 1;
+    height: 8px;
+    border-radius: 999px;
+    background: rgba(128, 148, 168, 0.18);
+    overflow: hidden;
+  }
+
+  #threatmap-root .tm-bar-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #2eac68, #ff9f43, #ff5252);
+    transition: width 0.6s ease;
+  }
+
+  #threatmap-root .tm-bar-count {
+    font-family: "Courier Prime", monospace;
+    font-size: 0.75rem;
+    min-width: 2.6rem;
+    text-align: end;
+    opacity: 0.8;
+  }
+
+  /* Drill-down panel */
+  #threatmap-root .tm-drill-controls {
+    display: flex;
+    gap: 0.4rem;
+    margin: 0.1rem 0 0.6rem;
+  }
+
+  #threatmap-root .tm-drill-select {
+    flex: 1 1 0;
+    font-family: "Courier Prime", monospace;
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    padding: 0.15rem 1.4rem 0.15rem 0.5rem;
+    color: #d9ecf7;
+    background-color: rgba(11, 53, 74, 0.85);
+    border: 1px solid rgba(46, 172, 104, 0.35);
+  }
+
+  #threatmap-root .tm-drill-select:focus {
+    box-shadow: none;
+    border-color: rgba(46, 172, 104, 0.7);
+    background-color: rgba(11, 53, 74, 0.95);
+    color: #d9ecf7;
+  }
+
+  #threatmap-root .tm-drill-select option {
+    color: #06121c;
+  }
+
+  #threatmap-root .tm-drill {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    width: min(330px, 88%);
+    max-height: calc(100% - 1.5rem);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    background: rgba(6, 15, 24, 0.92);
+    border: 1px solid rgba(46, 172, 104, 0.35);
+    border-radius: 0.6rem;
+    padding: 0.9rem;
+    color: #d9ecf7;
+    cursor: default;
+    backdrop-filter: blur(3px);
+  }
+
+  #threatmap-root .tm-drill-close {
+    position: absolute;
+    top: 0.6rem;
+    right: 0.6rem;
+    font-size: 0.6rem;
+  }
+
+  #threatmap-root .tm-drill h6 {
+    font-family: "Courier Prime", monospace;
+    letter-spacing: 0.08em;
+    color: #d9ecf7;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.2rem;
+    padding-right: 1.4rem;
+  }
+
+  #threatmap-root .tm-drill .tm-drill-sub {
+    font-size: 0.7rem;
+    color: #7fa6c0;
+    margin-bottom: 0.6rem;
+  }
+
+  #threatmap-root .tm-drill .tm-drill-ip {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.35rem 0;
+    border-bottom: 1px dashed rgba(128, 148, 168, 0.25);
+    font-family: "Courier Prime", monospace;
+    font-size: 0.75rem;
+  }
+
+  #threatmap-root .tm-drill .tm-drill-ip .tm-drill-ip-meta {
+    display: block;
+    font-size: 0.62rem;
+    color: #7fa6c0;
+    font-family: var(--bs-body-font-family);
+  }
+
+  #threatmap-root .tm-drill .tm-ban-btn {
+    margin-left: auto;
+    font-size: 0.62rem;
+    padding: 0.1rem 0.55rem;
+    letter-spacing: 0.06em;
+  }
+
+  #threatmap-root .tm-drill .tm-drill-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    margin-top: 0.6rem;
+  }
+
+  #threatmap-root .tm-drill .tm-drill-chip {
+    font-family: "Courier Prime", monospace;
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-radius: 999px;
+    padding: 0.1rem 0.5rem;
+    color: #06121c;
+  }
+
+  /* Toast */
+  #threatmap-root .tm-toast {
+    position: absolute;
+    bottom: 2.2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(6, 15, 24, 0.95);
+    border: 1px solid rgba(46, 172, 104, 0.5);
+    color: #d9ecf7;
+    font-family: "Courier Prime", monospace;
+    font-size: 0.72rem;
+    border-radius: 999px;
+    padding: 0.3rem 1rem;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+
+  #threatmap-root .tm-toast.tm-toast-error {
+    border-color: rgba(255, 82, 82, 0.6);
+  }
+
+  /* SOC fullscreen mode */
+  #threatmap-root .tm-map-card:fullscreen {
+    border-radius: 0;
+    border: none;
+    padding: 1.25rem !important;
+  }
+
+  #threatmap-root.tm-fs .tm-canvas-wrap {
+    aspect-ratio: auto;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  #threatmap-root.tm-fs .tm-map-card .card-body {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  #threatmap-root .tm-fs-chips {
+    position: absolute;
+    top: 0.75rem;
+    left: 0.75rem;
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    pointer-events: none;
+  }
+
+  #threatmap-root .tm-fs-chips .tm-chip {
+    font-family: "Courier Prime", monospace;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: #d9ecf7;
+    background: rgba(6, 15, 24, 0.75);
+    border: 1px solid rgba(46, 172, 104, 0.35);
+    border-radius: 999px;
+    padding: 0.25rem 0.8rem;
+  }
+
+  #threatmap-root .tm-fs-chips .tm-chip strong {
+    color: #2eac68;
+  }
+
+  #threatmap-root .tm-fs-feed {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    width: 300px;
+    max-height: 55%;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    background: rgba(6, 15, 24, 0.75);
+    border: 1px solid rgba(46, 172, 104, 0.25);
+    border-radius: 0.6rem;
+    padding: 0.7rem;
+    backdrop-filter: blur(3px);
+  }
+
+  #threatmap-root .tm-fs-feed .tm-fs-feed-title {
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    color: #7fa6c0;
+    margin-bottom: 0.4rem;
+  }
+
+  #threatmap-root .tm-fs-feed #tm-fs-feed-holder {
+    overflow-y: auto;
+    scrollbar-width: thin;
+    color: #d9ecf7;
+  }
+
+  #threatmap-root.tm-fs .tm-drill {
+    z-index: 5;
+  }
+</style>
+<script nonce="{{ script_nonce }}">
+  (function () {
+    "use strict";
+
+    /* ------------------------------------------------------------------ *
+     *  Embedded map data (generated from Natural Earth 110m, no CDN)      *
+     * ------------------------------------------------------------------ */
+    var MAP = {
+      cols: 220,
+      rows: 100,
+      latTop: 84.0,
+      latBot: -58.0,
+      mask: "AAAAAAAAAAAAAMB/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAPz/8///CwEAAAAAAAAAAAAAAAAAAAAAAAAAAPjw5////w8AABYAGAAAwAMAAAAAAAAAAAAAAATeB////z8AAH4AAAAAAHADAAAAAAAAAAAAAAIYP/j///8DAIAJAAAAAAAgAAAAAAAAAAAAgJk4AgD///8/AAAAAACABwDAfwAAAAAAAAAAAAAG2B8A+P//AwAAAAAABwD4/wMACAIAAAAAAMAH8tMGAP//HwAAAAAAGAD4///nAAMAAAAAAAD+P4b/APD//wAAAAAA4ABr////H/gDAAAAXwAA4Ifz/wD+/wMAAAAfAAC4////////DwAA/P/7P8/8jB+A/z8AAAD+DwA4+////////98/4P///3//7+gH/j8AAAD4/yf/f///////////P/r//////wHu4P8AEQDA/6f/////////////j/H//////3/8A/wB8AEAfn75/////////////yD4/////38ALIAfAAAA+Pv//////////////wfg//////8BPALwAAAA4J///////////////x8A/uf///8PgAcADAAAAP75////////////H34AgA/g////APwEAAAAAOAe////////////wzEAAEAB8P//H4D/AAAAAAzg4P//////////D8ABAAABAP7//w/4DwAAAICAjf//////////PwA+AAAEAMD////P/wcAAAAaCPz//////////wHgAQAAAAD4/////P8AAAAww/////////////8ADgAAAAAA////z/8PAAAAef////////////8vQAAAAAAA4P////+/AAAAgPn/////////////AgAAAAAAAPr///8PHAAAAOD/////////////DwAAAAAAAMD///9/wwMAAAD/////////////fwAAAAAAAAD8/////wAAAADg///vj////////wMAAAAAAADA/////w0AAAAA/v/Pfv7//////z8AAAAAAAAA/P///wcAAAAA5jN/wOf///////9xAAAAAAAAwP///38AAAAA8I/GB/j8//////+DAgAAAAAAAPz///8BAAAAAD6IXf/P//////8fEAAAAAAAAMD///8PAAAAAPCDwPz//P////+XAAEAAAAAAAD4//9/AAAAAAA+QNj/j/////9/GAgAAAAAAAAA////DwAAAABA+ABQ////////j+EAAAAAAAAA8P//fwAAAAAA/B8g9P//////f5gHAAAAAAAAAPz//wMAAAAA4P8BAP///////w8IAAAAAAAAAID//x8AAAAAAP9/DPj///////8AAAAAAAAAAADo//8AAAAAAPD/3/////////8PAAAAAAAAAAAA/k8IAAAAAAD/////5///////AQAAAAAAAAAA0H+AAQAAAAD8//8///7/////DwAAAAAAAAAAAPoHEAAAAADg////9x/+////fwAAAAAAAAAAACA/AAAAAAAA/v//f/4D+P///wcAAAAAAAAAAADkAwAAAAAA8P///8//A////78AAAAAAAABAAAAPkADAAAAAP/////8f/D//X8AAAAAAABAAAAAwIfBAAAAAPD////f/wP+x38CAAAAAAAAAAAAAHwYQAAAAAD/////+R+AP/g3AAAAAAAAAAAAAID/QAAAAADw////n/8A+AF/AAEAAAAAAAAAAADADwAAAAAA//////MDgA/wDxAAAAAAAAAAAAAA4AcAAAAA8P///38fAHgA/IEAAAAAAAAAAAAAAHgAAAAAAP////9/AAAHwB8gAAAAAAAAAAAAAAAGAAAAAPD/////AABwAOQBBAAAAAAAAAAAAABA8AAAAAD+////nwEAB0AOAAAAAAAAAAAAAAAAKPsBAADA/////x8AIABEAAAAAAAAAAAAAAAAAP0/AAAA/P////8BAAhAAGAAAAAAAAAAAAAAAID/BwAAgP////8PAIAACCAEAAAAAAAAAAAAAAD4/wMAAPDj////AAAAsAEHAAAAAAAAAAAAAACA/38AAAAA8P//BwAAABI4AAAAAAAAAAAAAAAA/P8HAAAAAP//PwAAAEDDAwAAAAAAAAAAAAAA4P9/AAAAAPD//wEAAAAYfhEAAAAAAAAAAAAAAP7/DwAAAAD//w8AAACA4QMAAAAAAAAAAAAAAOD//wcAAADw/38AAAAAMJ6ABAAAAAAAAAAAAAD+//8DAAAA//8DAAAAAMeZ+wEAAAAAAAAAAADw//9/AAAA4P8/AAAAAGCAAX4AAAAAAAAAAAAA////HwAAAPz/AwAAAAAIAIAvAAAAAAAAAAAA4P///wEAAMD/PwAAAAAABwD8AAAAAAAAAAAAAPz//x8AAAD8/wMAAAAAAEIAExAAAAAAAAAAAMD///8AAADA/38AAAAAAAAAAAAAAAAAAAAAAAD4//8HAAAA/P8HAAAAAAAACAAAAAAAAAAAAACA//8/AAAAwP9/EAAAAAAAwCEAAAAAAAAAAAAA8P//AwAAAP7/hwEAAAAAwB4GAAAAAAAAAAAAAP7/PwAAAOD/PwwAAAAAAPxzAAAAAAAAAAAAAMD//wMAAAD+/+EAAAAAAOB/BwBAAAAAAAAAAAD4/z8AAADA/w8OAAAAAAD/fwAAAAAAAAAAAACA//8BAAAA/H/gAAAAAAD8/x9AAAAAAAAAAAAA+P8fAAAAgP8PBwAAAADw//8BCAAAAAAAAAAAgP9/AAAAAPj/YAAAAAAA//8/AAAAAAAAAAAAAPj/AQAAAID/BwYAAAAA+P//BwAAAAAAAAAAAID/DwAAAAD4PwAAAAAAgP///wAAAAAAAAAAAAD4/wAAAACA/wMAAAAAAPD//w8AAAAAAAAAAADA/w8AAAAA8D8AAAAAAAD///8AAAAAAAAAAAAA/H8AAAAAAP4BAAAAAADw//8PAAAAAAAAAAAAwP8HAAAAAOAPAAAAAAAA/vl/AAAAAAAAAAAAAPw/AAAAAAB+AAAAAAAA4AP/BwAAAAAAAAAAAMC/AQAAAAAAAAAAAAAAAAbAPwAAAAAAAAAAAAD8BwAAAAAAAAAAAAAAAAAA+AMAAQAAAAAAAADgfwAAAAAAAAAAAAAAAAAAAD8AIAAAAAAAAAAA/gEAAAAAAAAAAAAAAAAAAIAAAAYAAAAAAAAA4A8AAAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAAD4AAAAAAAAAAAAAAAAAAACAAYAAAAAAAAAAAOADAAAAAAAAAAAAAAAAAAAACAAMAAAAAAAAAAA+AAAAAAAAAAAAAAAAAAAAAABgAAAAAAAAAADwAQAAAAAAAAAAAAAAAAAAAAAAAwAAAAAAAAAAPwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8AEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPBgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+      centroids: {"FJ":[178.0,-17.83],"TZ":[34.75,-6.26],"EH":[-12.14,24.29],"CA":[-101.57,57.75],"US":[-99.06,39.5],"KZ":[67.28,48.19],"UZ":[63.2,41.75],"PG":[144.33,-6.65],"ID":[114.02,-0.25],"AR":[-65.15,-35.22],"CL":[-71.67,-37.34],"CD":[23.58,-2.85],"SO":[45.73,4.75],"KE":[37.79,0.6],"SD":[29.86,15.99],"TD":[18.58,15.33],"HT":[-72.66,18.9],"DO":[-70.46,18.88],"RU":[99.22,61.69],"BS":[-77.92,24.51],"FK":[-59.42,-51.71],"NO":[14.24,64.54],"GL":[-41.5,74.77],"TF":[69.53,-49.31],"TL":[125.97,-8.77],"ZA":[25.12,-28.96],"LS":[28.17,-29.63],"MX":[-102.58,23.94],"UY":[-56.0,-32.78],"BR":[-53.05,-10.81],"BO":[-64.64,-16.73],"PE":[-74.39,-9.19],"CO":[-73.08,3.93],"PA":[-80.11,8.53],"CR":[-84.18,9.97],"NI":[-85.02,12.85],"HN":[-86.59,14.82],"SV":[-88.87,13.73],"GT":[-90.37,15.7],"BZ":[-88.7,17.2],"VE":[-66.16,7.16],"GY":[-58.97,4.79],"SR":[-55.91,4.12],"FR":[2.34,46.61],"EC":[-78.38,-1.45],"PR":[-66.48,18.24],"JM":[-77.32,18.14],"CU":[-78.96,21.63],"ZW":[29.79,-18.91],"BW":[23.77,-22.1],"NA":[17.16,-22.1],"SN":[-14.51,14.35],"ML":[-3.54,17.27],"MR":[-10.33,20.21],"BJ":[2.34,9.65],"NE":[9.32,17.35],"NG":[8.0,9.55],"CM":[12.61,5.66],"TG":[1.0,8.44],"GH":[-1.24,7.93],"CI":[-5.61,7.55],"GN":[-11.06,10.45],"GW":[-15.11,12.02],"LR":[-9.41,6.43],"SL":[-11.8,8.53],"BF":[-1.78,12.31],"CF":[20.37,6.54],"CG":[15.13,-0.84],"GA":[11.69,-0.65],"GQ":[10.37,1.65],"ZM":[27.73,-13.4],"MW":[34.19,-13.17],"MZ":[35.47,-17.23],"SZ":[31.4,-26.49],"AO":[17.5,-12.29],"BI":[29.91,-3.38],"IL":[35.0,31.48],"LB":[35.87,33.91],"MG":[46.69,-19.36],"PS":[35.27,31.94],"GM":[-15.43,13.48],"TN":[9.53,34.17],"DZ":[2.6,28.19],"JO":[36.78,31.25],"AE":[54.21,23.87],"QA":[51.18,25.32],"KW":[47.6,29.31],"IQ":[43.76,33.04],"OM":[56.1,20.58],"VU":[166.91,-15.22],"KH":[104.88,12.68],"TH":[101.01,15.02],"LA":[103.75,18.44],"MM":[96.51,21.02],"VN":[106.29,16.66],"KP":[127.17,40.14],"KR":[127.82,36.43],"MN":[102.95,46.82],"IN":[79.59,22.93],"BD":[90.27,23.84],"BT":[90.47,27.43],"NP":[84.01,28.24],"PK":[69.41,29.97],"AF":[66.09,33.86],"TJ":[71.03,38.58],"KG":[74.62,41.51],"TM":[59.28,39.09],"IR":[54.29,32.52],"SY":[38.54,35.01],"AM":[45.0,40.22],"SE":[16.6,62.81],"BY":[27.98,53.51],"UA":[31.23,49.15],"PL":[19.31,52.15],"AT":[14.08,47.61],"HU":[19.36,47.2],"MD":[28.41,47.2],"RO":[24.94,45.86],"LT":[23.88,55.28],"LV":[24.83,56.81],"EE":[25.82,58.64],"DE":[10.29,51.13],"BG":[25.2,42.75],"GR":[22.56,39.34],"TR":[35.39,38.99],"AL":[20.03,41.14],"HR":[16.57,45.02],"CH":[8.12,46.79],"LU":[5.97,49.77],"BE":[4.58,50.65],"NL":[5.51,52.3],"PT":[-8.06,39.63],"ES":[-3.62,40.35],"IE":[-8.01,53.18],"NC":[165.53,-21.26],"SB":[159.1,-7.9],"NZ":[170.51,-43.99],"AU":[134.38,-25.56],"LK":[80.67,7.7],"CN":[103.87,36.61],"IT":[12.22,43.47],"DK":[9.31,56.22],"GB":[-2.66,53.88],"IS":[-18.76,65.07],"AZ":[47.68,40.28],"GE":[43.48,42.16],"PH":[121.54,15.75],"MY":[114.68,3.55],"BN":[114.92,4.69],"SI":[14.94,46.13],"FI":[26.21,64.5],"SK":[19.51,48.73],"CZ":[15.33,49.78],"ER":[38.68,15.43],"JP":[136.88,36.02],"PY":[-58.39,-23.25],"YE":[47.54,15.91],"SA":[44.52,24.12],"AQ":[21.28,-80.52],"CY":[33.04,34.91],"MA":[-8.42,29.89],"EG":[29.84,26.51],"LY":[17.97,27.0],"ET":[39.55,8.65],"DJ":[42.5,11.77],"UG":[32.36,1.3],"RW":[29.92,-2.01],"BA":[17.82,44.18],"MK":[21.7,41.61],"RS":[20.82,44.23],"ME":[19.29,42.79],"XK":[20.9,42.58],"TT":[-61.33,10.43],"SS":[30.2,7.29]}
+    };
+
+    var RATIO = MAP.cols / MAP.rows;
+    var REASON_COLORS = [
+      ["modsecurity", "#ff5252"],
+      ["blacklist", "#ff9f43"],
+      ["greylist", "#ffd166"],
+      ["dnsbl", "#f368e0"],
+      ["bad behavior", "#a29bfe"],
+      ["badbehavior", "#a29bfe"],
+      ["limit", "#54a0ff"],
+      ["country", "#ff6b81"],
+      ["antibot", "#00d2d3"],
+      ["reverse scan", "#feca57"],
+      ["reversescan", "#feca57"],
+      ["bunkernet", "#ff7f50"],
+      ["crowdsec", "#e17055"],
+      ["whitelist", "#2eac68"],
+    ];
+    var DEFAULT_COLOR = "#2eac68";
+    var LAND_DOT_COLOR = "rgba(96, 160, 205, 0.5)";
+    var GRID_COLOR = "rgba(110, 160, 200, 0.06)";
+    var POLL_INTERVAL = 10000;
+    var WINDOW_LABELS = { 0: "entire buffer", 3600: "last hour", 86400: "last 24 hours", 604800: "last 7 days" };
+
+    function reasonColor(reason) {
+      var r = String(reason || "").toLowerCase();
+      for (var i = 0; i < REASON_COLORS.length; i++) {
+        if (r.indexOf(REASON_COLORS[i][0]) !== -1) return REASON_COLORS[i][1];
+      }
+      return DEFAULT_COLOR;
+    }
+
+    var regionNames = null;
+    try {
+      regionNames = new Intl.DisplayNames([document.documentElement.lang || "en"], { type: "region" });
+    } catch (e) {
+      regionNames = null;
+    }
+
+    function countryName(cc) {
+      if (!/^[A-Z]{2}$/.test(cc)) return cc;
+      try {
+        return (regionNames && regionNames.of(cc)) || cc;
+      } catch (e) {
+        return cc;
+      }
+    }
+
+    /* ------------------------------------------------------------------ */
+
+    var bootstrapEl = document.getElementById("threatmap-bootstrap");
+    var DATA = {};
+    try {
+      DATA = JSON.parse(bootstrapEl ? bootstrapEl.textContent : "{}") || {};
+    } catch (e) {
+      DATA = {};
+    }
+    if (DATA.error) DATA = {};
+
+    var HOME = DATA.home || { lat: 48.86, lon: 2.35, label: "BunkerWeb" };
+    var stats = DATA.stats || { total: 0, countries: {}, reasons: {}, services: {} };
+    var stats24 = DATA.stats24 || { last_24h: 0, unique_ips_24h: 0 };
+    var histogram = DATA.histogram || { start: 0, bucket: 60, counts: [] };
+    var windowSec = 0;
+    var lastEvents = (DATA.events || []).slice();
+
+    var root = document.getElementById("threatmap-root");
+    var wrap = document.getElementById("tm-canvas-wrap");
+    var baseCanvas = document.getElementById("tm-canvas-base");
+    var fxCanvas = document.getElementById("tm-canvas-fx");
+    var tlCanvas = document.getElementById("tm-timeline");
+    if (!wrap || !baseCanvas || !fxCanvas) return;
+    var baseCtx = baseCanvas.getContext("2d");
+    var fxCtx = fxCanvas.getContext("2d");
+    var tlCtx = tlCanvas ? tlCanvas.getContext("2d") : null;
+
+    var flagsInput = document.getElementById("base_flags_url");
+    var flagsUrl = flagsInput ? flagsInput.value : "";
+    var csrfInput = document.getElementById("threatmap-csrf");
+    var pageUrl = window.location.pathname;
+    var bansUrl = pageUrl.replace(/\/plugins\/threatmap\/?$/, "/bans/ban");
+
+    /* Decode the packed land bitmask into grid cell coordinates */
+    var dots = [];
+    (function decodeMask() {
+      var bin = atob(MAP.mask);
+      for (var idx = 0; idx < MAP.cols * MAP.rows; idx++) {
+        if (bin.charCodeAt(idx >> 3) & (1 << (idx & 7))) {
+          dots.push([idx % MAP.cols, (idx / MAP.cols) | 0]);
+        }
+      }
+    })();
+
+    /* Letterboxed equirectangular projection: the map keeps its aspect
+       ratio and is centered when the canvas is wider/taller (SOC mode) */
+    var W = 0, H = 0, mapW = 0, mapH = 0, offX = 0, offY = 0;
+
+    function computeLayout() {
+      if (W / H > RATIO) {
+        mapH = H;
+        mapW = H * RATIO;
+      } else {
+        mapW = W;
+        mapH = W / RATIO;
+      }
+      offX = (W - mapW) / 2;
+      offY = (H - mapH) / 2;
+    }
+
+    function project(lon, lat) {
+      return [offX + ((lon + 180) / 360) * mapW, offY + ((MAP.latTop - lat) / (MAP.latTop - MAP.latBot)) * mapH];
+    }
+
+    function resize() {
+      var rect = wrap.getBoundingClientRect();
+      if (rect.width < 10 || rect.height < 10) return;
+      var dpr = window.devicePixelRatio || 1;
+      W = rect.width;
+      H = rect.height;
+      [baseCanvas, fxCanvas].forEach(function (cv) {
+        cv.width = Math.round(rect.width * dpr);
+        cv.height = Math.round(rect.height * dpr);
+      });
+      baseCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      fxCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      computeLayout();
+      drawBase();
+      drawTimeline();
+    }
+
+    function drawBase() {
+      if (!W) return;
+      baseCtx.clearRect(0, 0, W, H);
+
+      // Faint graticule
+      baseCtx.strokeStyle = GRID_COLOR;
+      baseCtx.lineWidth = 1;
+      baseCtx.beginPath();
+      for (var lon = -150; lon <= 150; lon += 30) {
+        var gx = project(lon, 0)[0];
+        baseCtx.moveTo(gx, offY);
+        baseCtx.lineTo(gx, offY + mapH);
+      }
+      for (var lat = -30; lat <= 60; lat += 30) {
+        var gy = project(0, lat)[1];
+        baseCtx.moveTo(offX, gy);
+        baseCtx.lineTo(offX + mapW, gy);
+      }
+      baseCtx.stroke();
+
+      // Heat glow under attacking countries
+      var counts = stats.countries || {};
+      var max = 0;
+      var cc;
+      for (cc in counts) {
+        if (MAP.centroids[cc] && counts[cc] > max) max = counts[cc];
+      }
+      if (max > 0) {
+        for (cc in counts) {
+          var c = MAP.centroids[cc];
+          if (!c) continue;
+          var intensity = Math.sqrt(counts[cc] / max);
+          var p = project(c[0], c[1]);
+          var radius = mapW * (0.015 + 0.045 * intensity);
+          var grad = baseCtx.createRadialGradient(p[0], p[1], 0, p[0], p[1], radius);
+          grad.addColorStop(0, "rgba(255, 90, 60, " + (0.06 + 0.2 * intensity).toFixed(3) + ")");
+          grad.addColorStop(1, "rgba(255, 90, 60, 0)");
+          baseCtx.fillStyle = grad;
+          baseCtx.beginPath();
+          baseCtx.arc(p[0], p[1], radius, 0, Math.PI * 2);
+          baseCtx.fill();
+        }
+      }
+
+      // Land dots
+      var cell = mapW / MAP.cols;
+      var r = Math.max(0.7, cell * 0.3);
+      baseCtx.fillStyle = LAND_DOT_COLOR;
+      baseCtx.beginPath();
+      for (var i = 0; i < dots.length; i++) {
+        var x = offX + (dots[i][0] + 0.5) * cell;
+        var y = offY + ((dots[i][1] + 0.5) / MAP.rows) * mapH;
+        baseCtx.moveTo(x + r, y);
+        baseCtx.arc(x, y, r, 0, Math.PI * 2);
+      }
+      baseCtx.fill();
+    }
+
+    /* ------------------------------------------------------------------ *
+     *  Timeline sparkline                                                 *
+     * ------------------------------------------------------------------ */
+    function lerpColor(a, b, t) {
+      return "rgb(" + a.map(function (v, i) { return Math.round(v + (b[i] - v) * t); }).join(",") + ")";
+    }
+
+    function drawTimeline() {
+      if (!tlCtx) return;
+      var rect = tlCanvas.getBoundingClientRect();
+      if (rect.width < 10) return;
+      var dpr = window.devicePixelRatio || 1;
+      tlCanvas.width = Math.round(rect.width * dpr);
+      tlCanvas.height = Math.round(rect.height * dpr);
+      tlCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      var tw = rect.width;
+      var th = rect.height;
+      tlCtx.clearRect(0, 0, tw, th);
+
+      var counts = histogram.counts || [];
+      var n = counts.length;
+      tlCtx.strokeStyle = "rgba(110, 160, 200, 0.25)";
+      tlCtx.beginPath();
+      tlCtx.moveTo(0, th - 1);
+      tlCtx.lineTo(tw, th - 1);
+      tlCtx.stroke();
+      if (!n) return;
+
+      var max = Math.max.apply(null, counts);
+      if (max <= 0) return;
+      var slot = tw / n;
+      var barW = Math.max(1.5, slot * 0.65);
+      var green = [46, 172, 104];
+      var red = [255, 82, 82];
+      for (var i = 0; i < n; i++) {
+        if (!counts[i]) continue;
+        var hRatio = counts[i] / max;
+        var barH = Math.max(2, hRatio * (th - 6));
+        tlCtx.fillStyle = lerpColor(green, red, hRatio);
+        tlCtx.fillRect(i * slot + (slot - barW) / 2, th - 1 - barH, barW, barH);
+      }
+
+      var startEl = document.getElementById("tm-tl-start");
+      var endEl = document.getElementById("tm-tl-end");
+      var fmt = function (ts) {
+        var d = new Date(ts * 1000);
+        return d.toLocaleDateString([], { month: "short", day: "numeric" }) + " " + d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
+      };
+      if (startEl) startEl.textContent = fmt(histogram.start);
+      if (endEl) endEl.textContent = fmt(histogram.start + n * histogram.bucket);
+    }
+
+    /* ------------------------------------------------------------------ *
+     *  Attack arcs and effects                                            *
+     * ------------------------------------------------------------------ */
+    // Respect the OS "reduce motion" setting: no flying arcs, expanding rings
+    // or pulsing beacons — attacks appear as brief static lines that fade.
+    var motionQuery = window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : null;
+    var REDUCED = !!(motionQuery && motionQuery.matches);
+    if (motionQuery && motionQuery.addEventListener) {
+      motionQuery.addEventListener("change", function (e) {
+        REDUCED = e.matches;
+      });
+    }
+
+    var arcs = [];
+    var rings = [];
+    var highlight = null;
+
+    function bezier(p0, cp, p1, t) {
+      var mt = 1 - t;
+      return [
+        mt * mt * p0[0] + 2 * mt * t * cp[0] + t * t * p1[0],
+        mt * mt * p0[1] + 2 * mt * t * cp[1] + t * t * p1[1],
+      ];
+    }
+
+    function spawnArc(cc, color, delay) {
+      var c = MAP.centroids[cc];
+      if (!c || !W) return false;
+      var jitter = mapW * 0.008;
+      var p0 = project(c[0], c[1]);
+      p0[0] += (Math.random() - 0.5) * jitter;
+      p0[1] += (Math.random() - 0.5) * jitter;
+      var p1 = project(HOME.lon, HOME.lat);
+      var dist = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]);
+      var cp = [
+        (p0[0] + p1[0]) / 2 + (p1[1] - p0[1]) * 0.15,
+        (p0[1] + p1[1]) / 2 - Math.min(mapH * 0.38, dist * 0.4) - mapH * 0.03,
+      ];
+      arcs.push({
+        p0: p0,
+        p1: p1,
+        cp: cp,
+        start: performance.now() + (delay || 0),
+        dur: 900 + Math.min(1400, dist * 3.2),
+        color: color,
+        impactDone: false,
+      });
+      if (!REDUCED) {
+        rings.push({ x: p0[0], y: p0[1], start: performance.now() + (delay || 0), dur: 700, maxR: 11, color: color });
+      }
+      hideEmpty();
+      return true;
+    }
+
+    function drawHome(now) {
+      var p = project(HOME.lon, HOME.lat);
+      if (!REDUCED) {
+        var phase = (now % 2000) / 2000;
+        fxCtx.strokeStyle = "rgba(46, 172, 104, " + (0.55 * (1 - phase)).toFixed(3) + ")";
+        fxCtx.lineWidth = 1.5;
+        fxCtx.beginPath();
+        fxCtx.arc(p[0], p[1], 4 + phase * 12, 0, Math.PI * 2);
+        fxCtx.stroke();
+      }
+      fxCtx.fillStyle = "#2eac68";
+      fxCtx.shadowColor = "#2eac68";
+      fxCtx.shadowBlur = 8;
+      fxCtx.beginPath();
+      fxCtx.arc(p[0], p[1], 3, 0, Math.PI * 2);
+      fxCtx.fill();
+      fxCtx.shadowBlur = 0;
+      fxCtx.font = '700 10px "Courier Prime", monospace';
+      fxCtx.fillStyle = "rgba(217, 236, 247, 0.8)";
+      fxCtx.fillText(String(HOME.label || "").toUpperCase(), p[0] + 10, p[1] - 8);
+    }
+
+    function drawHighlight(now) {
+      if (!highlight || now > highlight.until) return;
+      var c = MAP.centroids[highlight.cc];
+      if (!c) return;
+      var p = project(c[0], c[1]);
+      var phase = REDUCED ? 0 : (now % 1600) / 1600;
+      var alpha = Math.min(1, (highlight.until - now) / 900);
+      if (!REDUCED) {
+        fxCtx.strokeStyle = "rgba(255, 209, 102, " + (0.8 * alpha * (1 - phase)).toFixed(3) + ")";
+        fxCtx.lineWidth = 1.6;
+        fxCtx.beginPath();
+        fxCtx.arc(p[0], p[1], 5 + phase * 16, 0, Math.PI * 2);
+        fxCtx.stroke();
+      }
+      fxCtx.strokeStyle = "rgba(255, 209, 102, " + (0.45 * alpha).toFixed(3) + ")";
+      fxCtx.beginPath();
+      fxCtx.arc(p[0], p[1], 4, 0, Math.PI * 2);
+      fxCtx.stroke();
+      fxCtx.font = '700 11px "Courier Prime", monospace';
+      fxCtx.fillStyle = "rgba(255, 224, 138, " + (0.95 * alpha).toFixed(3) + ")";
+      fxCtx.fillText(highlight.label, p[0] + 12, p[1] + 4);
+    }
+
+    function animate(now) {
+      fxCtx.clearRect(0, 0, W, H);
+      drawHome(now);
+      drawHighlight(now);
+
+      var i;
+      for (i = arcs.length - 1; i >= 0; i--) {
+        var a = arcs[i];
+        var p = (now - a.start) / a.dur;
+        if (p < 0) continue;
+        if (p > 1.05) {
+          arcs.splice(i, 1);
+          continue;
+        }
+
+        // Reduced motion: draw the whole path once as a static line that fades,
+        // with no travelling head or origin animation.
+        if (REDUCED) {
+          fxCtx.lineWidth = 1.4;
+          fxCtx.lineCap = "round";
+          fxCtx.strokeStyle = a.color;
+          fxCtx.globalAlpha = 0.5 * (1 - p);
+          fxCtx.beginPath();
+          var seg = bezier(a.p0, a.cp, a.p1, 0);
+          fxCtx.moveTo(seg[0], seg[1]);
+          for (var sr = 1; sr <= 20; sr++) {
+            seg = bezier(a.p0, a.cp, a.p1, sr / 20);
+            fxCtx.lineTo(seg[0], seg[1]);
+          }
+          fxCtx.stroke();
+          fxCtx.globalAlpha = Math.min(1, 0.8 * (1 - p) + 0.2);
+          fxCtx.fillStyle = a.color;
+          fxCtx.beginPath();
+          fxCtx.arc(a.p0[0], a.p0[1], 2, 0, Math.PI * 2);
+          fxCtx.fill();
+          fxCtx.globalAlpha = 1;
+          continue;
+        }
+
+        var head = Math.min(1, p);
+        var tail = Math.max(0, head - 0.3);
+        var steps = 22;
+        fxCtx.lineWidth = 1.6;
+        fxCtx.lineCap = "round";
+        var prev = bezier(a.p0, a.cp, a.p1, tail);
+        for (var s = 1; s <= steps; s++) {
+          var t = tail + ((head - tail) * s) / steps;
+          var pt = bezier(a.p0, a.cp, a.p1, t);
+          fxCtx.strokeStyle = a.color;
+          fxCtx.globalAlpha = 0.08 + 0.75 * (s / steps);
+          fxCtx.beginPath();
+          fxCtx.moveTo(prev[0], prev[1]);
+          fxCtx.lineTo(pt[0], pt[1]);
+          fxCtx.stroke();
+          prev = pt;
+        }
+        fxCtx.globalAlpha = 1;
+
+        // Glowing head
+        var hp = bezier(a.p0, a.cp, a.p1, head);
+        fxCtx.fillStyle = "#ffffff";
+        fxCtx.shadowColor = a.color;
+        fxCtx.shadowBlur = 9;
+        fxCtx.beginPath();
+        fxCtx.arc(hp[0], hp[1], 2.1, 0, Math.PI * 2);
+        fxCtx.fill();
+        fxCtx.shadowBlur = 0;
+
+        // Origin marker while in flight
+        fxCtx.fillStyle = a.color;
+        fxCtx.globalAlpha = 0.85;
+        fxCtx.beginPath();
+        fxCtx.arc(a.p0[0], a.p0[1], 1.8, 0, Math.PI * 2);
+        fxCtx.fill();
+        fxCtx.globalAlpha = 1;
+
+        if (head >= 1 && !a.impactDone) {
+          a.impactDone = true;
+          rings.push({ x: a.p1[0], y: a.p1[1], start: now, dur: 650, maxR: 16, color: a.color });
+        }
+      }
+
+      for (i = rings.length - 1; i >= 0; i--) {
+        var ring = rings[i];
+        var q = (now - ring.start) / ring.dur;
+        if (q < 0) continue;
+        if (q > 1) {
+          rings.splice(i, 1);
+          continue;
+        }
+        fxCtx.strokeStyle = ring.color;
+        fxCtx.globalAlpha = 0.7 * (1 - q);
+        fxCtx.lineWidth = 1.4;
+        fxCtx.beginPath();
+        fxCtx.arc(ring.x, ring.y, 2 + q * ring.maxR, 0, Math.PI * 2);
+        fxCtx.stroke();
+        fxCtx.globalAlpha = 1;
+      }
+
+      requestAnimationFrame(animate);
+    }
+
+    /* ------------------------------------------------------------------ *
+     *  Feed, counters, tables                                             *
+     * ------------------------------------------------------------------ */
+    var feedEl = document.getElementById("tm-feed");
+    var emptyEl = document.getElementById("tm-empty");
+
+    function hideEmpty() {
+      if (emptyEl) emptyEl.classList.add("d-none");
+    }
+
+    function timeLabel(ts) {
+      var d = ts ? new Date(ts * 1000) : new Date();
+      return d.toLocaleTimeString([], { hour12: false });
+    }
+
+    function flagImg(cc, w, h) {
+      if (!flagsUrl) return null;
+      var img = document.createElement("img");
+      var code = /^[A-Z]{2}$/.test(cc) ? cc.toLowerCase() : "zz";
+      img.src = flagsUrl + "/" + code + ".svg";
+      img.height = h;
+      img.width = w;
+      img.alt = cc;
+      img.addEventListener("error", function () {
+        img.src = flagsUrl + "/zz.svg";
+      }, { once: true });
+      return img;
+    }
+
+    function addFeedItem(evt) {
+      if (!feedEl) return;
+      var li = document.createElement("li");
+      var flag = flagImg(evt.country, 20, 14);
+      if (flag) li.appendChild(flag);
+
+      var body = document.createElement("div");
+      var ip = document.createElement("div");
+      ip.className = "tm-feed-ip";
+      ip.textContent = evt.ip;
+      var meta = document.createElement("div");
+      meta.className = "tm-feed-meta";
+      meta.textContent = timeLabel(evt.date) + " · " + evt.country + " → " + (evt.service || "?");
+      body.appendChild(ip);
+      body.appendChild(meta);
+      li.appendChild(body);
+
+      var badge = document.createElement("span");
+      badge.className = "tm-feed-reason";
+      badge.style.backgroundColor = reasonColor(evt.reason);
+      badge.textContent = String(evt.reason || "unknown").slice(0, 18);
+      li.appendChild(badge);
+
+      feedEl.insertBefore(li, feedEl.firstChild);
+      while (feedEl.children.length > 40) feedEl.removeChild(feedEl.lastChild);
+    }
+
+    function rebuildFeed(events) {
+      if (!feedEl) return;
+      feedEl.textContent = "";
+      events.slice(0, 25).reverse().forEach(addFeedItem);
+    }
+
+    var counterState = {};
+
+    function setCounter(id, value) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      var from = counterState[id] || 0;
+      var to = Number(value) || 0;
+      counterState[id] = to;
+      if (from === to || REDUCED) {
+        el.textContent = to.toLocaleString();
+        return;
+      }
+      var start = performance.now();
+      var dur = 500;
+      (function tick(now) {
+        var p = Math.min(1, (now - start) / dur);
+        el.textContent = Math.round(from + (to - from) * p).toLocaleString();
+        if (p < 1) requestAnimationFrame(tick);
+      })(start);
+    }
+
+    function topEntries(obj, n) {
+      return Object.keys(obj || {})
+        .map(function (k) { return [k, obj[k]]; })
+        .sort(function (a, b) { return b[1] - a[1]; })
+        .slice(0, n);
+    }
+
+    function buildBars(containerId, entries, opts) {
+      var container = document.getElementById(containerId);
+      if (!container) return;
+      container.textContent = "";
+      if (!entries.length) {
+        var none = document.createElement("p");
+        none.className = "text-muted text-center mb-0";
+        none.textContent = "No data to show";
+        container.appendChild(none);
+        return;
+      }
+      var max = entries[0][1] || 1;
+      entries.forEach(function (entry) {
+        var row = document.createElement("div");
+        row.className = "tm-bar-row";
+        var label = document.createElement("span");
+        label.className = "tm-bar-label" + (opts.wide ? " tm-bar-label-wide" : "");
+        if (opts.flags) {
+          var img = flagImg(entry[0], 19, 13);
+          if (img) label.appendChild(img);
+        }
+        var txt = document.createElement("span");
+        txt.textContent = entry[0];
+        if (opts.flags) txt.title = countryName(entry[0]);
+        label.appendChild(txt);
+        var track = document.createElement("div");
+        track.className = "tm-bar-track";
+        var fill = document.createElement("div");
+        fill.className = "tm-bar-fill";
+        fill.style.width = Math.max(3, Math.round((entry[1] / max) * 100)) + "%";
+        if (opts.solid) fill.style.background = reasonColor(entry[0]);
+        track.appendChild(fill);
+        var count = document.createElement("span");
+        count.className = "tm-bar-count";
+        count.textContent = Number(entry[1]).toLocaleString();
+        row.appendChild(label);
+        row.appendChild(track);
+        row.appendChild(count);
+        if (opts.flags && MAP.centroids[entry[0]]) {
+          row.classList.add("tm-clickable");
+          row.addEventListener("click", function () {
+            openCountry(entry[0]);
+          });
+        }
+        container.appendChild(row);
+      });
+    }
+
+    function buildLegend() {
+      var legend = document.getElementById("tm-legend");
+      if (!legend) return;
+      legend.textContent = "";
+      topEntries(stats.reasons, 6).forEach(function (entry) {
+        var item = document.createElement("span");
+        item.className = "tm-legend-item";
+        var swatch = document.createElement("span");
+        swatch.className = "tm-legend-swatch";
+        swatch.style.backgroundColor = reasonColor(entry[0]);
+        item.appendChild(swatch);
+        var txt = document.createElement("span");
+        txt.textContent = entry[0];
+        item.appendChild(txt);
+        legend.appendChild(item);
+      });
+    }
+
+    function updateChips() {
+      var chips = document.getElementById("tm-fs-chips");
+      if (!chips) return;
+      chips.textContent = "";
+      var top = topEntries(stats.countries, 1)[0];
+      [
+        ["ATTACKS 24H", (stats24.last_24h || 0).toLocaleString()],
+        ["UNIQUE IPS", (stats24.unique_ips_24h || 0).toLocaleString()],
+        ["TOP ORIGIN", top ? countryName(top[0]).toUpperCase() : "－"],
+      ].forEach(function (pair) {
+        var chip = document.createElement("span");
+        chip.className = "tm-chip";
+        chip.textContent = pair[0] + " ";
+        var strong = document.createElement("strong");
+        strong.textContent = pair[1];
+        chip.appendChild(strong);
+        chips.appendChild(chip);
+      });
+    }
+
+    function updateStats() {
+      setCounter("tm-count-24h", stats24.last_24h);
+      setCounter("tm-count-ips", stats24.unique_ips_24h);
+      setCounter("tm-count-total", stats.total);
+      var windowLabel = document.getElementById("tm-window-label");
+      if (windowLabel) windowLabel.textContent = WINDOW_LABELS[windowSec] || "entire buffer";
+
+      var top = topEntries(stats.countries, 1)[0];
+      var originEl = document.getElementById("tm-top-origin");
+      if (originEl) originEl.textContent = top ? top[0] + " (" + top[1].toLocaleString() + ")" : "－";
+
+      buildBars("tm-top-countries", topEntries(stats.countries, 8), { flags: true });
+      buildBars("tm-top-reasons", topEntries(stats.reasons, 8), { wide: true, solid: true });
+      buildLegend();
+      updateChips();
+      drawBase();
+    }
+
+    /* ------------------------------------------------------------------ *
+     *  Toast                                                              *
+     * ------------------------------------------------------------------ */
+    var toastTimer = null;
+
+    function toast(msg, isError) {
+      var el = document.getElementById("tm-toast");
+      if (!el) return;
+      el.textContent = msg;
+      el.classList.toggle("tm-toast-error", !!isError);
+      el.classList.remove("d-none");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(function () {
+        el.classList.add("d-none");
+      }, 4000);
+    }
+
+    /* ------------------------------------------------------------------ *
+     *  Live polling / window refresh                                      *
+     * ------------------------------------------------------------------ */
+    var seen = {};
+    var seenCount = 0;
+    var lastTs = 0;
+
+    function remember(evt) {
+      if (evt.date > lastTs) lastTs = evt.date;
+      if (evt.id) {
+        seen[evt.id] = 1;
+        seenCount++;
+        if (seenCount > 3000) {
+          seen = {};
+          seenCount = 0;
+        }
+      }
+    }
+
+    function fireEvents(events, feed) {
+      // events arrive newest first: animate oldest first, cap the burst
+      var list = events.slice(0, 30).reverse();
+      list.forEach(function (evt, i) {
+        var delay = 400 + i * 300;
+        spawnArc(evt.country, reasonColor(evt.reason), delay);
+        if (feed) {
+          setTimeout(function () {
+            addFeedItem(evt);
+          }, delay);
+        }
+      });
+    }
+
+    function postAction(body) {
+      var headers = { "Content-Type": "application/json" };
+      if (csrfInput && csrfInput.value) headers["X-CSRFToken"] = csrfInput.value;
+      return fetch(pageUrl, {
+        method: "POST",
+        headers: headers,
+        credentials: "same-origin",
+        body: JSON.stringify(body),
+      }).then(function (resp) {
+        if (!resp.ok) throw new Error("HTTP " + resp.status);
+        return resp.json();
+      }).then(function (payload) {
+        var data = (payload && payload.data) || {};
+        if (data.error) throw new Error(data.error);
+        return data;
+      });
+    }
+
+    function applyData(data, reset) {
+      stats = data.stats || stats;
+      stats24 = data.stats24 || stats24;
+      histogram = data.histogram || histogram;
+      updateStats();
+      drawTimeline();
+      if (reset) {
+        lastEvents = (data.events || []).slice();
+        lastEvents.forEach(remember);
+        rebuildFeed(lastEvents);
+        return;
+      }
+      var fresh = (data.events || []).filter(function (evt) {
+        return !evt.id || !seen[evt.id];
+      });
+      fresh.forEach(remember);
+      lastEvents = fresh.concat(lastEvents).slice(0, 200);
+      fireEvents(fresh, true);
+    }
+
+    function poll() {
+      if (document.hidden) return;
+      postAction({ since: lastTs, window: windowSec })
+        .then(function (data) {
+          if (data.stats) applyData(data, false);
+        })
+        .catch(function () {
+          /* instance may be restarting: retry on next tick */
+        });
+      refreshDrill();
+    }
+
+    function setWindow(sec, btn) {
+      windowSec = sec;
+      document.querySelectorAll("#threatmap-root .tm-range-btn").forEach(function (b) {
+        b.classList.toggle("active", b === btn);
+      });
+      postAction({ since: 0, window: windowSec })
+        .then(function (data) {
+          if (data.stats) applyData(data, true);
+        })
+        .catch(function (e) {
+          toast("Failed to load window: " + e.message, true);
+        });
+    }
+
+    document.querySelectorAll("#threatmap-root .tm-range-btn").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        setWindow(Number(btn.dataset.window) || 0, btn);
+      });
+    });
+
+    /* ------------------------------------------------------------------ *
+     *  Country drill-down + bans                                          *
+     * ------------------------------------------------------------------ */
+    var drillEl = document.getElementById("tm-drill");
+    var drillContent = document.getElementById("tm-drill-content");
+    var currentCountry = null; // country whose panel is open (for auto-refresh)
+    var bannedIps = {}; // IPs banned this session -> true
+    var DURATIONS = [["24H", 86400], ["1H", 3600], ["7D", 604800], ["PERM", 0]];
+    var banDuration = 86400;
+    var banScope = "global";
+
+    function markButtonBanned(btn) {
+      btn.disabled = true;
+      btn.textContent = "BANNED";
+      btn.classList.remove("btn-outline-danger");
+      if (!btn.classList.contains("btn-outline-secondary")) btn.classList.add("btn-outline-secondary");
+    }
+
+    function closeDrill() {
+      if (drillEl) drillEl.classList.add("d-none");
+      currentCountry = null;
+    }
+
+    var drillCloseBtn = document.getElementById("tm-drill-close");
+    if (drillCloseBtn) drillCloseBtn.addEventListener("click", closeDrill);
+
+    function banIp(ip, service, btn) {
+      var durLabel = (DURATIONS.filter(function (d) { return d[1] === banDuration; })[0] || ["24H"])[0];
+      var scopeLabel = banScope === "service" ? "service " + (service || "?") : "globally";
+      if (!window.confirm("Ban " + ip + " " + scopeLabel + " for " + (banDuration === 0 ? "ever" : durLabel) + "?")) return;
+      btn.disabled = true;
+      var useService = banScope === "service" && service && service !== "unknown" && service !== "_";
+      var params = new URLSearchParams();
+      params.set("csrf_token", csrfInput ? csrfInput.value : "");
+      params.set("bans", JSON.stringify([{
+        ip: ip,
+        reason: "threat map",
+        ban_scope: useService ? "service" : "global",
+        service: useService ? service : "",
+        exp: banDuration,
+      }]));
+      fetch(bansUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        credentials: "same-origin",
+        body: params.toString(),
+      })
+        .then(function (resp) {
+          if (!resp.ok) throw new Error("HTTP " + resp.status);
+          bannedIps[ip] = true;
+          markButtonBanned(btn);
+          toast("Ban requested for " + ip + " (" + (banDuration === 0 ? "permanent" : durLabel) + ")");
+        })
+        .catch(function (e) {
+          btn.disabled = false;
+          toast("Ban failed: " + e.message, true);
+        });
+    }
+
+    function buildBanControls() {
+      var row = document.createElement("div");
+      row.className = "tm-drill-controls";
+
+      var durSel = document.createElement("select");
+      durSel.className = "form-select form-select-sm tm-drill-select";
+      durSel.setAttribute("aria-label", "Ban duration");
+      DURATIONS.forEach(function (d) {
+        var opt = document.createElement("option");
+        opt.value = String(d[1]);
+        opt.textContent = d[0];
+        if (d[1] === banDuration) opt.selected = true;
+        durSel.appendChild(opt);
+      });
+      durSel.addEventListener("change", function () {
+        banDuration = Number(durSel.value) || 0;
+      });
+
+      var scopeSel = document.createElement("select");
+      scopeSel.className = "form-select form-select-sm tm-drill-select";
+      scopeSel.setAttribute("aria-label", "Ban scope");
+      [["GLOBAL", "global"], ["SERVICE", "service"]].forEach(function (s) {
+        var opt = document.createElement("option");
+        opt.value = s[1];
+        opt.textContent = s[0];
+        if (s[1] === banScope) opt.selected = true;
+        scopeSel.appendChild(opt);
+      });
+      scopeSel.addEventListener("change", function () {
+        banScope = scopeSel.value;
+      });
+
+      row.appendChild(durSel);
+      row.appendChild(scopeSel);
+      return row;
+    }
+
+    function renderDrill(data) {
+      if (!drillContent) return;
+      drillContent.textContent = "";
+
+      var title = document.createElement("h6");
+      var flag = flagImg(data.country, 22, 15);
+      if (flag) title.appendChild(flag);
+      var titleTxt = document.createElement("span");
+      titleTxt.textContent = countryName(data.country).toUpperCase();
+      title.appendChild(titleTxt);
+      drillContent.appendChild(title);
+
+      var sub = document.createElement("p");
+      sub.className = "tm-drill-sub";
+      sub.textContent = data.total.toLocaleString() + " blocked request" + (data.total === 1 ? "" : "s") + " · " + (WINDOW_LABELS[windowSec] || "entire buffer");
+      drillContent.appendChild(sub);
+
+      if (data.ips.length) drillContent.appendChild(buildBanControls());
+
+      if (!data.ips.length) {
+        var none = document.createElement("p");
+        none.className = "tm-drill-sub mb-0";
+        none.textContent = "No attacker IPs recorded in this window.";
+        drillContent.appendChild(none);
+      }
+
+      data.ips.forEach(function (entry) {
+        var row = document.createElement("div");
+        row.className = "tm-drill-ip";
+        var body = document.createElement("div");
+        var ipLine = document.createElement("span");
+        ipLine.textContent = entry.ip + " ×" + entry.count;
+        var meta = document.createElement("span");
+        meta.className = "tm-drill-ip-meta";
+        meta.textContent = entry.reason + " → " + entry.service;
+        body.appendChild(ipLine);
+        body.appendChild(meta);
+        row.appendChild(body);
+        var banBtn = document.createElement("button");
+        banBtn.type = "button";
+        banBtn.className = "btn btn-outline-danger rounded-pill tm-ban-btn";
+        banBtn.textContent = "BAN";
+        if (bannedIps[entry.ip]) {
+          markButtonBanned(banBtn);
+        } else {
+          banBtn.addEventListener("click", function () {
+            banIp(entry.ip, entry.service, banBtn);
+          });
+        }
+        row.appendChild(banBtn);
+        drillContent.appendChild(row);
+      });
+
+      var chips = document.createElement("div");
+      chips.className = "tm-drill-chips";
+      topEntries(data.reasons, 5).forEach(function (entry) {
+        var chip = document.createElement("span");
+        chip.className = "tm-drill-chip";
+        chip.style.backgroundColor = reasonColor(entry[0]);
+        chip.textContent = entry[0] + " ×" + entry[1];
+        chips.appendChild(chip);
+      });
+      drillContent.appendChild(chips);
+    }
+
+    function openCountry(cc) {
+      if (!drillEl || !drillContent) return;
+      currentCountry = cc;
+      drillEl.classList.remove("d-none");
+      drillContent.textContent = "Loading " + cc + " ...";
+      postAction({ action: "country", country: cc, window: windowSec })
+        .then(function (data) {
+          if (currentCountry === cc) renderDrill(data);
+        })
+        .catch(function (e) {
+          if (currentCountry === cc) drillContent.textContent = "Failed to load details: " + e.message;
+        });
+    }
+
+    // Silently refresh the open panel on the poll cycle (keeps focus/selects intact
+    // by only re-rendering the country body).
+    function refreshDrill() {
+      if (!currentCountry || !drillEl || drillEl.classList.contains("d-none")) return;
+      var cc = currentCountry;
+      postAction({ action: "country", country: cc, window: windowSec })
+        .then(function (data) {
+          if (currentCountry === cc) renderDrill(data);
+        })
+        .catch(function () { /* keep last render on transient errors */ });
+    }
+
+    // Click on the map: find the nearest attacking country centroid
+    wrap.addEventListener("click", function (e) {
+      if (e.target.closest(".tm-drill, .tm-fs-feed, button, a, input")) return;
+      var rect = wrap.getBoundingClientRect();
+      var x = e.clientX - rect.left;
+      var y = e.clientY - rect.top;
+      var counts = stats.countries || {};
+      var best = null;
+      var bestDist = Math.max(16, mapW * 0.02);
+      for (var cc in counts) {
+        var c = MAP.centroids[cc];
+        if (!c) continue;
+        var p = project(c[0], c[1]);
+        var d = Math.hypot(p[0] - x, p[1] - y);
+        if (d < bestDist) {
+          bestDist = d;
+          best = cc;
+        }
+      }
+      if (best) openCountry(best);
+      else closeDrill();
+    });
+
+    /* ------------------------------------------------------------------ *
+     *  Replay mode                                                        *
+     * ------------------------------------------------------------------ */
+    var liveBadge = document.getElementById("tm-live-badge");
+    var liveText = document.getElementById("tm-live-text");
+    var replayBtn = document.getElementById("tm-replay-btn");
+    var replayUntil = 0;
+
+    function setBadge(text, alt) {
+      if (liveText) liveText.textContent = text;
+      if (liveBadge) liveBadge.classList.toggle("tm-alt", !!alt);
+    }
+
+    function replay() {
+      var now = performance.now();
+      if (now < replayUntil) return;
+      var events = lastEvents.slice(0, 100).reverse();
+      if (!events.length) {
+        toast("Nothing to replay in this window", true);
+        return;
+      }
+      var gap = Math.min(400, Math.max(90, 18000 / events.length));
+      events.forEach(function (evt, i) {
+        spawnArc(evt.country, reasonColor(evt.reason), i * gap);
+      });
+      replayUntil = now + events.length * gap + 2500;
+      setBadge("REPLAY", true);
+      toast("Replaying " + events.length + " attacks");
+      setTimeout(function () {
+        if (!demoTimer) setBadge("LIVE", false);
+      }, events.length * gap + 2500);
+    }
+
+    if (replayBtn) replayBtn.addEventListener("click", replay);
+
+    /* ------------------------------------------------------------------ *
+     *  Demo mode                                                          *
+     * ------------------------------------------------------------------ */
+    var demoTimer = null;
+    var demoBtn = document.getElementById("tm-demo-btn");
+    var demoCountries = Object.keys(MAP.centroids);
+    var demoReasons = ["modsecurity", "blacklist", "dnsbl", "bad behavior", "limit", "antibot", "country"];
+
+    function toggleDemo() {
+      if (demoTimer) {
+        clearInterval(demoTimer);
+        demoTimer = null;
+        setBadge("LIVE", false);
+        if (demoBtn) demoBtn.classList.replace("btn-outline-warning", "btn-outline-success");
+        return;
+      }
+      setBadge("DEMO", true);
+      if (demoBtn) demoBtn.classList.replace("btn-outline-success", "btn-outline-warning");
+      demoTimer = setInterval(function () {
+        var cc = demoCountries[(Math.random() * demoCountries.length) | 0];
+        var reason = demoReasons[(Math.random() * demoReasons.length) | 0];
+        var evt = {
+          ip: "203.0.113." + ((Math.random() * 254) | 0),
+          country: cc,
+          reason: reason,
+          service: "demo",
+          date: Date.now() / 1000,
+        };
+        spawnArc(cc, reasonColor(reason), 0);
+        addFeedItem(evt);
+      }, 800);
+    }
+
+    if (demoBtn) demoBtn.addEventListener("click", toggleDemo);
+
+    /* ------------------------------------------------------------------ *
+     *  SOC fullscreen mode                                                *
+     * ------------------------------------------------------------------ */
+    var mapCard = document.getElementById("tm-map-card");
+    var fsBtn = document.getElementById("tm-fs-btn");
+    var fsChips = document.getElementById("tm-fs-chips");
+    var fsFeed = document.getElementById("tm-fs-feed");
+    var fsFeedHolder = document.getElementById("tm-fs-feed-holder");
+    var feedHome = document.getElementById("tm-feed-home");
+    var cycleTimer = null;
+    var cycleIdx = 0;
+
+    function cycleHighlight() {
+      var top = topEntries(stats.countries, 6).filter(function (e) {
+        return MAP.centroids[e[0]];
+      });
+      if (!top.length) return;
+      cycleIdx = (cycleIdx + 1) % top.length;
+      var entry = top[cycleIdx];
+      highlight = {
+        cc: entry[0],
+        until: performance.now() + 5500,
+        label: countryName(entry[0]).toUpperCase() + " · " + entry[1].toLocaleString(),
+      };
+    }
+
+    function onFullscreenChange() {
+      var active = document.fullscreenElement === mapCard;
+      if (root) root.classList.toggle("tm-fs", active);
+      if (fsChips) fsChips.classList.toggle("d-none", !active);
+      if (fsFeed) fsFeed.classList.toggle("d-none", !active);
+      if (active) {
+        if (fsFeedHolder && feedEl) fsFeedHolder.appendChild(feedEl);
+        updateChips();
+        cycleHighlight();
+        cycleTimer = setInterval(cycleHighlight, 7000);
+        if (fsBtn) fsBtn.querySelector("i").className = "bx bx-exit-fullscreen";
+      } else {
+        if (feedHome && feedEl) feedHome.appendChild(feedEl);
+        clearInterval(cycleTimer);
+        cycleTimer = null;
+        highlight = null;
+        if (fsBtn) fsBtn.querySelector("i").className = "bx bx-fullscreen";
+      }
+    }
+
+    if (fsBtn && mapCard) {
+      fsBtn.addEventListener("click", function () {
+        if (document.fullscreenElement) {
+          document.exitFullscreen();
+        } else if (mapCard.requestFullscreen) {
+          mapCard.requestFullscreen();
+        }
+      });
+      document.addEventListener("fullscreenchange", onFullscreenChange);
+    }
+
+    /* ------------------------------------------------------------------ *
+     *  Init                                                               *
+     * ------------------------------------------------------------------ */
+    resize();
+    if (typeof ResizeObserver !== "undefined") {
+      new ResizeObserver(resize).observe(wrap);
+    } else {
+      window.addEventListener("resize", resize);
+    }
+
+    lastEvents.forEach(remember);
+    if (lastEvents.length) {
+      fireEvents(lastEvents, false);
+      rebuildFeed(lastEvents);
+    } else if (emptyEl) {
+      emptyEl.classList.remove("d-none");
+    }
+    updateStats();
+    drawTimeline();
+    requestAnimationFrame(animate);
+    setInterval(poll, POLL_INTERVAL);
+  })();
+</script>
