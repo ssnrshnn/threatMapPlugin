@@ -1,14 +1,14 @@
 {
   "id": "threatmap",
   "name": "Threat Map",
-  "description": "Live world threat map showing blocked attacks targeting your infrastructure, with animated attack arcs, country statistics and a real-time event feed.",
-  "version": "1.0",
+  "description": "Live world map of the requests BunkerWeb blocks, with country drill-downs and one-click bans.",
+  "version": "1.1",
   "stream": "no",
   "settings": {
     "USE_THREAT_MAP": {
       "context": "global",
       "default": "yes",
-      "help": "Enable the threat map page in the web UI.",
+      "help": "Enable the threat map page in the web UI (it reads the reports of the metrics plugin, so USE_METRICS must stay enabled).",
       "id": "use-threat-map",
       "label": "Threat map",
       "regex": "^(no|yes)$",
@@ -17,7 +17,7 @@
     "THREAT_MAP_MAX_EVENTS": {
       "context": "global",
       "default": "200",
-      "help": "Maximum number of recent blocked requests sent to the browser for the map animation and feed.",
+      "help": "Maximum number of recent blocked requests sent to the browser for the animation, the feed and replays (clamped to 1-2000). Statistics always cover every stored report.",
       "id": "threat-map-max-events",
       "label": "Threat map max events",
       "regex": "^\\d+$",
@@ -26,25 +26,25 @@
     "THREAT_MAP_HOME_LAT": {
       "context": "global",
       "default": "48.86",
-      "help": "Latitude of your infrastructure, used as the target of the attack arcs on the map.",
+      "help": "Latitude (-90 to 90) of your infrastructure, where the attack arcs land.",
       "id": "threat-map-home-lat",
       "label": "Threat map home latitude",
-      "regex": "^-?\\d{1,2}(\\.\\d+)?$",
+      "regex": "^-?(90(\\.0+)?|[1-8]?\\d(\\.\\d+)?)$",
       "type": "text"
     },
     "THREAT_MAP_HOME_LON": {
       "context": "global",
       "default": "2.35",
-      "help": "Longitude of your infrastructure, used as the target of the attack arcs on the map.",
+      "help": "Longitude (-180 to 180) of your infrastructure, where the attack arcs land.",
       "id": "threat-map-home-lon",
       "label": "Threat map home longitude",
-      "regex": "^-?\\d{1,3}(\\.\\d+)?$",
+      "regex": "^-?(180(\\.0+)?|(1[0-7]\\d|[1-9]?\\d)(\\.\\d+)?)$",
       "type": "text"
     },
     "THREAT_MAP_HOME_LABEL": {
       "context": "global",
       "default": "BunkerWeb",
-      "help": "Label displayed next to the home marker on the map.",
+      "help": "Label displayed next to the home marker on the map (up to 32 characters).",
       "id": "threat-map-home-label",
       "label": "Threat map home label",
       "regex": "^.{0,32}$",

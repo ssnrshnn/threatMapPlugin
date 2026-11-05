@@ -1,0 +1,8 @@
+[tool.black]
+line-length = 160
+target-version = ["py39"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["tests"]
+addopts = "-p no:cacheprovider"

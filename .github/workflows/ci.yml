@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+      - run: pip install black==26.10.1 flake8 shellcheck-py
+      - run: black --check .
+      - run: flake8
+      - run: shellcheck examples/traffic.sh
+      - run: npx --yes prettier@3.9.4 --check "threatmap/**/*.{js,css,json,md}" "*.md" "examples/*.yml" ".github/**/*.yml"
+      - run: node --check threatmap/ui/threatmap.js
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ matrix.python }}
+      - run: pip install pytest jinja2
+      - run: pytest -q
+
+  geo:
+    # The map data must be reproducible from the pinned Natural Earth release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - run: python tools/build_geo.py --check
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [lint, test, geo]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check that the tag matches plugin.json
+        run: |
+          version="$(python3 -c 'import json; print(json.load(open("threatmap/plugin.json"))["version"])')"
+          if [ "${GITHUB_REF_NAME}" != "v${version}" ]; then
+            echo "::error::tag ${GITHUB_REF_NAME} does not match plugin.json version v${version}"
+            exit 1
+          fi
+      - name: Package the plugin (EXTERNAL_PLUGIN_URLS archive)
+        run: |
+          tar --sort=name --owner=0 --group=0 --numeric-owner --mtime='1970-01-01 00:00Z' \
+            --exclude='__pycache__' -czf threatmap.tar.gz threatmap
+          sha256sum threatmap.tar.gz > threatmap.tar.gz.sha256
+          tar -tzf threatmap.tar.gz
+      - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+        with:
+          files: |
+            threatmap.tar.gz
+            threatmap.tar.gz.sha256
+          generate_release_notes: true

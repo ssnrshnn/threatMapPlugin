@@ -8,11 +8,11 @@ x-env: &env
 
 services:
   bunkerweb:
-    image: bunkerity/bunkerweb:1.6.12
+    image: bunkerity/bunkerweb:1.6.17
     ports:
       # bound to 127.0.0.1: reachable only from this machine, never from LAN/internet
-      - 127.0.0.1:8080:8080/tcp
-      - 127.0.0.1:8443:8443/tcp
+      - 127.0.0.1:${HTTP_PORT:-8080}:8080/tcp
+      - 127.0.0.1:${HTTPS_PORT:-8443}:8443/tcp
     environment:
       API_WHITELIST_IP: "127.0.0.0/24 10.20.30.0/24"
     restart: "unless-stopped"
@@ -25,7 +25,7 @@ services:
           - bunkerweb
 
   bw-scheduler:
-    image: bunkerity/bunkerweb-scheduler:1.6.12
+    image: bunkerity/bunkerweb-scheduler:1.6.17
     depends_on:
       - bunkerweb
       - bw-db
@@ -36,7 +36,7 @@ services:
     environment:
       <<: *env
       BUNKERWEB_INSTANCES: "bunkerweb"
-      SERVER_NAME: "www.example.com app1.example.com"
+      SERVER_NAME: "www.example.com app1.example.com app2.example.com"
       MULTISITE: "yes"
       API_WHITELIST_IP: "127.0.0.0/24 10.20.30.0/24"
       # Persist blocked-request reports so history survives instance reloads
@@ -63,6 +63,11 @@ services:
       app1.example.com_USE_REVERSE_PROXY: "yes"
       app1.example.com_REVERSE_PROXY_URL: "/"
       app1.example.com_REVERSE_PROXY_HOST: "http://app1:8080"
+      # app2 only detects: its attacks are logged, not denied (dashed arcs on the map)
+      app2.example.com_USE_REVERSE_PROXY: "yes"
+      app2.example.com_REVERSE_PROXY_URL: "/"
+      app2.example.com_REVERSE_PROXY_HOST: "http://app1:8080"
+      app2.example.com_SECURITY_MODE: "detect"
     restart: "unless-stopped"
     networks:
       bw-universe:
@@ -73,10 +78,11 @@ services:
           - bw-scheduler
 
   bw-ui:
-    image: bunkerity/bunkerweb-ui:1.6.12
+    image: bunkerity/bunkerweb-ui:1.6.17
     ports:
-      # bound to 127.0.0.1: reachable only from this machine, never from LAN/internet
-      - 127.0.0.1:7000:7000
+      # bound to 127.0.0.1: reachable only from this machine, never from LAN/internet.
+      # On macOS the AirPlay receiver already listens on 7000: run with UI_PORT=7001.
+      - 127.0.0.1:${UI_PORT:-7000}:7000
     volumes:
       # Read the collected .log files rendered by the UI Logs page.
       - bw-logs:/var/log/bunkerweb
