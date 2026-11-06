@@ -1,0 +1,1323 @@
+/* Threat Map for BunkerWeb: page styles (included inline by template.html).
+   Rules are scoped to the page root and to the SOC-mode portal (see threatmap.js).
+   The stat and breakdown cards follow the UI theme (light or dark); the map card is
+   always dark, like a monitoring wall. */
+:is(#threatmap-root, #threatmap-soc) {
+  --tm-font: var(--bs-body-font-family, "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif);
+  --tm-mono: ui-monospace, "SF Mono", SFMono-Regular, "JetBrains Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+
+  /* map card (always dark) */
+  --tm-ink: #e8f0f7;
+  --tm-ink-2: #a7bbcc;
+  --tm-ink-3: #6f879b;
+  --tm-hair: rgba(255, 255, 255, 0.07);
+  --tm-hair-2: rgba(255, 255, 255, 0.13);
+  --tm-glass: rgba(8, 19, 31, 0.82);
+
+  /* status: blocked / detected only / healthy */
+  --tm-blocked: #e5484d;
+  --tm-detected: #f5a524;
+  --tm-good: #2eb67d;
+  --tm-accent: #4c9bf0;
+
+  /* page cards (follow the BunkerWeb theme) */
+  --tm-p-ink: var(--bs-heading-color, #384551);
+  --tm-p-ink-2: var(--bs-secondary-color, rgba(100, 110, 120, 0.75));
+  --tm-p-hair: var(--bs-border-color, rgba(128, 148, 168, 0.25));
+  --tm-p-track: rgba(128, 148, 168, 0.16);
+  --tm-p-hover: rgba(128, 148, 168, 0.1);
+
+  font-family: var(--tm-font);
+}
+
+/* ------------------------------------------------------------- shared bits */
+:is(#threatmap-root, #threatmap-soc) .tm-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-card-title {
+  margin: 0 0 0.1rem;
+  font-family: var(--tm-font);
+  font-size: 0.98rem;
+  font-weight: 650;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--tm-p-ink);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-card-sub {
+  display: block;
+  font-size: 0.76rem;
+  color: var(--tm-p-ink-2);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-kpi-icon {
+  flex-shrink: 0;
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  font-size: 1.1rem;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-tone-red {
+  color: #f0616a;
+  background: rgba(229, 72, 77, 0.14);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-tone-amber {
+  color: #e8960c;
+  background: rgba(245, 165, 36, 0.16);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-tone-blue {
+  color: #3f8fe8;
+  background: rgba(57, 135, 229, 0.14);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-tone-green {
+  color: #22a06b;
+  background: rgba(46, 182, 125, 0.15);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-flag {
+  flex-shrink: 0;
+  border-radius: 3px;
+  object-fit: cover;
+  box-shadow: 0 0 0 1px rgba(128, 148, 168, 0.28);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-flag-blank {
+  display: inline-block;
+  background: rgba(128, 148, 168, 0.25);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-none {
+  margin: 0;
+  padding: 1.5rem 0;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--tm-p-ink-2);
+}
+
+/* --------------------------------------------------------------- stat cards */
+:is(#threatmap-root, #threatmap-soc) .tm-kpi {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 150px;
+  padding: 1.1rem 1.25rem 0;
+  overflow: hidden;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-kpi-head {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-kpi-label {
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--tm-p-ink-2);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-kpi-value {
+  margin-top: 0.75rem;
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  color: var(--tm-p-ink);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-kpi-origin {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+  font-size: 1.5rem;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-kpi-origin > span {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-kpi-sub {
+  min-height: 1.2em;
+  margin-top: 0.3rem;
+  font-size: 0.78rem;
+  color: var(--tm-p-ink-2);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-delta {
+  display: inline-block;
+  margin-right: 0.3rem;
+  padding: 0 0.4rem;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 0.72rem;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-delta.tm-up {
+  color: #e5484d;
+  background: rgba(229, 72, 77, 0.13);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-delta.tm-down {
+  color: #22a06b;
+  background: rgba(46, 182, 125, 0.14);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-spark {
+  display: block;
+  width: calc(100% + 2.5rem);
+  height: 42px;
+  margin: auto -1.25rem 0;
+  padding-top: 0.6rem;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-meter,
+:is(#threatmap-root, #threatmap-soc) .tm-split {
+  display: flex;
+  gap: 2px;
+  height: 6px;
+  margin: auto 0 1.2rem;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--tm-p-track);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-meter > span,
+:is(#threatmap-root, #threatmap-soc) .tm-split > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-meter > span {
+  width: 0;
+  background: var(--tm-accent);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-split {
+  background: transparent;
+}
+
+/* ----------------------------------------------------------------- map card */
+:is(#threatmap-root, #threatmap-soc) .tm-map-card {
+  display: flex;
+  flex-direction: column;
+  padding: 1rem 1.1rem 0.85rem;
+  color: var(--tm-ink);
+  background:
+    radial-gradient(90% 70% at 50% 42%, rgba(38, 96, 148, 0.2) 0%, rgba(38, 96, 148, 0) 70%), linear-gradient(180deg, #061321 0%, #071827 60%, #081b2b 100%);
+  border: 1px solid var(--tm-hair-2);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-map-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem 1rem;
+  margin-bottom: 0.4rem;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-map-title {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 1rem;
+  font-weight: 650;
+  color: var(--tm-ink);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-map-title > i {
+  font-size: 1.25rem;
+  color: var(--tm-ink-2);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-left: 0.2rem;
+  padding: 0.12rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--tm-good);
+  background: rgba(46, 182, 125, 0.12);
+  border: 1px solid rgba(46, 182, 125, 0.35);
+  transition:
+    color 0.3s,
+    background-color 0.3s,
+    border-color 0.3s;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-live-badge.tm-alt {
+  color: var(--tm-detected);
+  background: rgba(245, 165, 36, 0.12);
+  border-color: rgba(245, 165, 36, 0.4);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-live-badge.tm-off {
+  color: #ff6b70;
+  background: rgba(229, 72, 77, 0.12);
+  border-color: rgba(229, 72, 77, 0.45);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: tm-pulse 1.8s ease-out infinite;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-off .tm-live-dot {
+  animation: none;
+}
+
+@keyframes tm-pulse {
+  0% {
+    box-shadow: 0 0 0 0 currentColor;
+  }
+  100% {
+    box-shadow: 0 0 0 6px transparent;
+  }
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-map-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--tm-hair);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-seg button,
+:is(#threatmap-root, #threatmap-soc) .tm-tool-btn {
+  font-family: var(--tm-font);
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    background-color 0.15s,
+    border-color 0.15s;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-seg button {
+  min-width: 2.6rem;
+  height: 26px;
+  padding: 0 0.7rem;
+  border: 0;
+  border-radius: 7px;
+  color: var(--tm-ink-2);
+  background: transparent;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-seg button:hover {
+  color: var(--tm-ink);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-seg button.active {
+  color: #06121e;
+  background: var(--tm-ink);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-tool-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  height: 34px;
+  padding: 0 0.85rem;
+  border-radius: 10px;
+  color: var(--tm-ink-2);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--tm-hair-2);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-tool-btn i {
+  font-size: 1rem;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-tool-btn.tm-icon-btn {
+  width: 34px;
+  padding: 0;
+  justify-content: center;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-tool-btn:hover {
+  color: var(--tm-ink);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-tool-btn.tm-on {
+  color: #1d1300;
+  background: var(--tm-detected);
+  border-color: transparent;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-seg button:focus-visible,
+:is(#threatmap-root, #threatmap-soc) .tm-tool-btn:focus-visible,
+:is(#threatmap-root, #threatmap-soc) .tm-drill-close:focus-visible,
+:is(#threatmap-root, #threatmap-soc) .tm-ban-btn:focus-visible {
+  outline: 2px solid var(--tm-accent);
+  outline-offset: 2px;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-canvas-wrap {
+  position: relative;
+  flex: 1 1 auto;
+  width: 100%;
+  aspect-ratio: 2.05 / 1;
+  min-height: 300px;
+  overflow: hidden;
+  cursor: default;
+  user-select: none;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-canvas-wrap.tm-pointer {
+  cursor: pointer;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-canvas-wrap canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--tm-ink-2);
+  pointer-events: none;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-empty i {
+  margin-bottom: 0.5rem;
+  font-size: 2.4rem;
+  color: var(--tm-good);
+}
+
+/* legend & coverage under the map */
+:is(#threatmap-root, #threatmap-soc) .tm-map-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem 1.25rem;
+  padding: 0.5rem 0.1rem 0.15rem;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 1rem;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.75rem;
+  color: var(--tm-ink-2);
+  white-space: nowrap;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-legend-swatch {
+  width: 16px;
+  height: 3px;
+  border-radius: 2px;
+  background: currentColor;
+  box-shadow: 0 0 6px currentColor;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-legend-dash {
+  width: 16px;
+  border-top: 2px dashed var(--tm-ink-2);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-legend-ramp {
+  width: 60px;
+  height: 6px;
+  border-radius: 3px;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-legend-sep {
+  width: 1px;
+  height: 14px;
+  background: var(--tm-hair-2);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-coverage {
+  margin-left: auto;
+  font-size: 0.72rem;
+  color: var(--tm-ink-3);
+  text-align: right;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-coverage.tm-warn {
+  color: var(--tm-detected);
+}
+
+/* hover tooltip */
+:is(#threatmap-root, #threatmap-soc) .tm-tooltip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 4;
+  min-width: 200px;
+  max-width: 270px;
+  padding: 0.65rem 0.8rem;
+  border-radius: 12px;
+  font-size: 0.78rem;
+  color: var(--tm-ink);
+  background: var(--tm-glass);
+  border: 1px solid var(--tm-hair-2);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(10px);
+  pointer-events: none;
+  will-change: transform;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-tt-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.45rem;
+  font-size: 0.88rem;
+  font-weight: 650;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-tt-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  color: var(--tm-ink-2);
+  line-height: 1.55;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-tt-row strong {
+  color: var(--tm-ink);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-tt-hint {
+  margin-top: 0.45rem;
+  padding-top: 0.4rem;
+  border-top: 1px solid var(--tm-hair);
+  font-size: 0.72rem;
+  color: var(--tm-ink-3);
+}
+
+/* timeline */
+:is(#threatmap-root, #threatmap-soc) .tm-timeline-wrap {
+  margin-top: 0.4rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--tm-hair);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-timeline-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem 1rem;
+  margin-bottom: 0.35rem;
+  font-size: 0.72rem;
+  color: var(--tm-ink-3);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-tl-title {
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--tm-ink-2);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-tl-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-key {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-key + .tm-key,
+:is(#threatmap-root, #threatmap-soc) .tm-tl-key .tm-key:not(:first-child) {
+  margin-left: 0.6rem;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-key-blocked {
+  background: var(--tm-blocked);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-key-detected {
+  background: var(--tm-detected);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-tl-caption {
+  margin-left: auto;
+  color: var(--tm-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+:is(#threatmap-root, #threatmap-soc) #tm-timeline {
+  display: block;
+  width: 100%;
+  height: 84px;
+  cursor: crosshair;
+}
+
+/* --------------------------------------------------------------------- feed */
+:is(#threatmap-root, #threatmap-soc) .tm-feed-card {
+  display: flex;
+  flex-direction: column;
+  padding: 1.1rem 1.1rem 0.5rem;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-feed-scroll {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-feed {
+  max-height: 440px;
+  margin: 0 -0.35rem;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+@media (min-width: 1400px) {
+  /* side by side with the map: the feed takes the map's height and scrolls */
+  #threatmap-root .tm-feed-scroll {
+    min-height: 300px;
+  }
+
+  #threatmap-root .tm-feed-scroll > .tm-feed {
+    position: absolute;
+    inset: 0;
+    max-height: none;
+  }
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-feed li {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  grid-template-areas:
+    "flag ip time"
+    "flag meta tags";
+  align-items: center;
+  gap: 0.15rem 0.65rem;
+  padding: 0.5rem 0.35rem;
+  border-bottom: 1px solid var(--tm-p-hair);
+  animation: tm-feed-in 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-feed li > .tm-flag {
+  grid-area: flag;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-feed li > .tm-feed-ip {
+  grid-area: ip;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-feed li > .tm-feed-time {
+  grid-area: time;
+  justify-self: end;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-feed li > .tm-feed-meta {
+  grid-area: meta;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-feed li > .tm-tags {
+  grid-area: tags;
+}
+
+/* narrow feeds (side column at 1400-1700 px, SOC overlay): tags on their own line */
+:is(#threatmap-root, #threatmap-soc) .tm-feed-card,
+:is(#threatmap-root, #threatmap-soc) .tm-fs-feed {
+  container-type: inline-size;
+}
+
+@container (max-width: 400px) {
+  :is(#threatmap-root, #threatmap-soc) .tm-feed li {
+    grid-template-areas:
+      "flag ip time"
+      ". meta meta"
+      ". tags tags";
+    align-items: start;
+  }
+
+  :is(#threatmap-root, #threatmap-soc) .tm-feed li > .tm-flag {
+    margin-top: 0.15rem;
+  }
+
+  :is(#threatmap-root, #threatmap-soc) .tm-feed li > .tm-tags {
+    justify-content: flex-start;
+    margin-top: 0.2rem;
+  }
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-feed li:last-child {
+  border-bottom: 0;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-feed li.tm-bump {
+  animation: tm-feed-bump 0.6s ease-out;
+}
+
+@keyframes tm-feed-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+    background-color: rgba(229, 72, 77, 0.16);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    background-color: transparent;
+  }
+}
+
+@keyframes tm-feed-bump {
+  from {
+    background-color: rgba(229, 72, 77, 0.14);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-feed-ip {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+  font-family: var(--tm-mono);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--tm-p-ink);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-feed-ip > span:first-child {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-feed-count {
+  flex-shrink: 0;
+  padding: 0 0.38rem;
+  border-radius: 999px;
+  font-family: var(--tm-font);
+  font-size: 0.66rem;
+  font-weight: 700;
+  line-height: 1.5;
+  color: var(--tm-p-ink);
+  background: var(--tm-p-track);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-feed-meta {
+  min-width: 0;
+  font-size: 0.72rem;
+  color: var(--tm-p-ink-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-feed-time {
+  font-size: 0.7rem;
+  color: var(--tm-p-ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-tags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.25rem;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-tag {
+  --c: #8a94a3;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+  max-width: 9.5rem;
+  padding: 0.08rem 0.45rem;
+  border-radius: 6px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--tm-p-ink);
+  background: color-mix(in srgb, var(--c) 15%, transparent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-tag::before {
+  content: "";
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--c);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-tag.tm-tag-detect {
+  --c: var(--tm-detected);
+  background: transparent;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tm-detected) 55%, transparent);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-tag.tm-tag-demo {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--tm-p-hair);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-tag.tm-tag-demo::before {
+  display: none;
+}
+
+/* ------------------------------------------------------------- breakdowns */
+:is(#threatmap-root, #threatmap-soc) .tm-panel {
+  padding: 1.1rem 1.25rem 1rem;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-mix {
+  display: flex;
+  gap: 2px;
+  height: 10px;
+  margin-bottom: 0.9rem;
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-mix:empty {
+  display: none;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-mix > span {
+  min-width: 3px;
+  height: 100%;
+  transition: flex-grow 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-bar-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.32rem 0.75rem;
+  margin: 0 -0.5rem;
+  padding: 0.42rem 0.5rem;
+  border-radius: 8px;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-bar-row.tm-clickable {
+  cursor: pointer;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-bar-row.tm-clickable:hover,
+:is(#threatmap-root, #threatmap-soc) .tm-bar-row.tm-clickable:focus-visible {
+  background: var(--tm-p-hover);
+  outline: none;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-bar-label {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--tm-p-ink);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-bar-label > span:last-child {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-bar-label .tm-mono {
+  font-family: var(--tm-mono);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-rank {
+  flex-shrink: 0;
+  width: 1.1rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--tm-p-ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-bar-swatch {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-bar-count {
+  font-size: 0.8rem;
+  font-weight: 650;
+  color: var(--tm-p-ink);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-bar-count small {
+  display: inline-block;
+  min-width: 3.4em;
+  margin-left: 0.35rem;
+  font-size: 0.74rem;
+  font-weight: 500;
+  text-align: right;
+  color: var(--tm-p-ink-2);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-bar-track {
+  grid-column: 1 / -1;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--tm-p-track);
+  overflow: hidden;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--tm-blocked);
+  transition: width 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* -------------------------------------------------------------- drill-down */
+:is(#threatmap-root, #threatmap-soc) .tm-drill {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  z-index: 5;
+  width: min(360px, 90%);
+  max-height: calc(100% - 1.2rem);
+  padding: 1rem;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  border-radius: 14px;
+  color: var(--tm-ink);
+  background: var(--tm-glass);
+  border: 1px solid var(--tm-hair-2);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(12px);
+  cursor: default;
+  animation: tm-drill-in 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes tm-drill-in {
+  from {
+    opacity: 0;
+    transform: translateX(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-drill-close {
+  position: absolute;
+  top: 0.7rem;
+  right: 0.7rem;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  font-size: 1.15rem;
+  color: var(--tm-ink-2);
+  background: rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-drill-close:hover {
+  color: var(--tm-ink);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-drill h6 {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0 0 0.15rem;
+  padding-right: 2.2rem;
+  font-family: var(--tm-font);
+  font-size: 1.02rem;
+  font-weight: 650;
+  letter-spacing: 0;
+  color: var(--tm-ink);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-drill-sub {
+  margin: 0;
+  font-size: 0.74rem;
+  color: var(--tm-ink-3);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-drill-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.45rem;
+  margin: 0.8rem 0 0.2rem;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-drill-stat {
+  padding: 0.5rem 0.6rem;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--tm-hair);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-drill-stat b {
+  display: block;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--tm-ink);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-drill-stat span {
+  font-size: 0.68rem;
+  color: var(--tm-ink-3);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-drill-section {
+  margin: 0.9rem 0 0.4rem;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--tm-ink-3);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-drill-controls {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 0.3rem;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-drill-select {
+  flex: 1 1 0;
+  padding: 0.28rem 1.7rem 0.28rem 0.6rem;
+  border-radius: 8px;
+  font-family: var(--tm-font);
+  font-size: 0.74rem;
+  font-weight: 500;
+  color: var(--tm-ink);
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--tm-hair-2);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-drill-select:focus {
+  color: var(--tm-ink);
+  background-color: rgba(255, 255, 255, 0.08);
+  border-color: var(--tm-accent);
+  box-shadow: none;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-drill-select option {
+  color: #06121e;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-drill-ip {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--tm-hair);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-drill-ip:last-of-type {
+  border-bottom: 0;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-drill-ip-addr {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--tm-mono);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--tm-ink);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-drill-ip-addr .tm-feed-count {
+  color: var(--tm-ink);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-drill-ip-meta {
+  display: block;
+  margin-top: 0.1rem;
+  font-size: 0.7rem;
+  color: var(--tm-ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-ban-btn {
+  padding: 0.3rem 0.75rem;
+  border-radius: 8px;
+  font-family: var(--tm-font);
+  font-size: 0.72rem;
+  font-weight: 650;
+  color: #ff8a8e;
+  background: rgba(229, 72, 77, 0.12);
+  border: 1px solid rgba(229, 72, 77, 0.45);
+  cursor: pointer;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-ban-btn:hover:not(:disabled) {
+  color: #fff;
+  background: rgba(229, 72, 77, 0.5);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-ban-btn:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-ban-btn.tm-banned {
+  color: var(--tm-ink-2);
+  background: transparent;
+  border-color: var(--tm-hair-2);
+  opacity: 1;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-drill .tm-tags {
+  justify-content: flex-start;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-drill .tm-tag {
+  max-width: 100%;
+  color: var(--tm-ink);
+}
+
+/* -------------------------------------------------------------------- toast */
+:is(#threatmap-root, #threatmap-soc) .tm-toast {
+  position: absolute;
+  bottom: 1rem;
+  left: 50%;
+  z-index: 6;
+  max-width: 90%;
+  padding: 0.45rem 1rem;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  font-size: 0.78rem;
+  color: var(--tm-ink);
+  background: var(--tm-glass);
+  border: 1px solid rgba(46, 182, 125, 0.5);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(10px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-toast.tm-toast-error {
+  border-color: rgba(229, 72, 77, 0.6);
+}
+
+/* ---------------------------------------------------------- SOC wall mode */
+/* In SOC mode the map card is moved into #threatmap-soc, a direct child of <body>,
+   so no layout ancestor can trap position: fixed. */
+:is(#threatmap-root, #threatmap-soc) .tm-map-card.tm-soc {
+  position: fixed !important;
+  inset: 0;
+  z-index: 2000;
+  width: 100vw;
+  height: 100vh;
+  margin: 0;
+  padding: 1.1rem 1.4rem 1rem !important;
+  border: none;
+  border-radius: 0 !important;
+}
+
+html.tm-soc-open,
+html.tm-soc-open body {
+  overflow: hidden;
+}
+
+:is(#threatmap-root, #threatmap-soc).tm-fs .tm-canvas-wrap {
+  aspect-ratio: auto;
+  min-height: 0;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-fs-chips {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  pointer-events: none;
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-chip {
+  display: flex;
+  flex-direction: column;
+  min-width: 128px;
+  padding: 0.5rem 0.85rem 0.55rem;
+  border-radius: 12px;
+  background: var(--tm-glass);
+  border: 1px solid var(--tm-hair-2);
+  backdrop-filter: blur(10px);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-chip span {
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--tm-ink-3);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-chip strong {
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--tm-ink);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-fs-feed {
+  /* the feed rows use the dark map palette here, whatever the UI theme */
+  --tm-p-ink: var(--tm-ink);
+  --tm-p-ink-2: var(--tm-ink-3);
+  --tm-p-hair: var(--tm-hair);
+  --tm-p-track: rgba(255, 255, 255, 0.1);
+  position: absolute;
+  left: 0.5rem;
+  bottom: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  width: 300px;
+  max-height: min(46%, 420px);
+  padding: 0.75rem 0.8rem 0.4rem;
+  overflow: hidden;
+  border-radius: 14px;
+  background: var(--tm-glass);
+  border: 1px solid var(--tm-hair-2);
+  backdrop-filter: blur(10px);
+}
+
+:is(#threatmap-root, #threatmap-soc) .tm-fs-feed-title {
+  margin: 0 0 0.35rem;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--tm-ink-3);
+}
+
+:is(#threatmap-root, #threatmap-soc) #tm-fs-feed-holder {
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+:is(#threatmap-root, #threatmap-soc) #tm-fs-feed-holder .tm-feed {
+  max-height: none;
+  margin: 0;
+}
+
+@media (max-width: 576px) {
+  :is(#threatmap-root, #threatmap-soc) .tm-canvas-wrap {
+    aspect-ratio: 1.75 / 1;
+    min-height: 0;
+  }
+
+  :is(#threatmap-root, #threatmap-soc) .tm-map-foot {
+    display: none;
+  }
+
+  :is(#threatmap-root, #threatmap-soc) .tm-kpi-value {
+    font-size: 1.6rem;
+  }
+
+  :is(#threatmap-root, #threatmap-soc) .tm-kpi-origin {
+    font-size: 1.15rem;
+  }
+
+  :is(#threatmap-root, #threatmap-soc) .tm-tool-btn span,
+  :is(#threatmap-root, #threatmap-soc) #tm-fs-btn {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :is(#threatmap-root, #threatmap-soc) .tm-feed li,
+  :is(#threatmap-root, #threatmap-soc) .tm-drill,
+  :is(#threatmap-root, #threatmap-soc) .tm-live-dot {
+    animation: none;
+  }
+
+  :is(#threatmap-root, #threatmap-soc) .tm-bar-fill,
+  :is(#threatmap-root, #threatmap-soc) .tm-meter > span,
+  :is(#threatmap-root, #threatmap-soc) .tm-split > span,
+  :is(#threatmap-root, #threatmap-soc) .tm-mix > span {
+    transition: none;
+  }
+}

@@ -1,59 +1,38 @@
 # Threat Map plugin for BunkerWeb
 
-Live world threat map for the BunkerWeb web UI: see where blocked attacks against your infrastructure come from, in real time, on an animated dotted world map with attack arcs, impact ripples, a live event feed and per-country / per-reason statistics.
+Live world map of the requests BunkerWeb blocks, in the web UI: animated attack arcs on a Natural Earth dot map, countries coloured by their share of the attacks, a live feed, per-country / per-reason / per-service statistics, an activity timeline, country drill-downs with one-click bans and a SOC wall mode.
 
-The map is fully self-contained (no CDN, no external requests): the land dot-grid and country centroids are pre-generated from Natural Earth data and embedded in the page.
+The page is self-contained: the map data (Natural Earth, public domain) is embedded, with no CDN and no external request.
 
-## Features
+## Where the data comes from
 
-- Dotted world map in the BunkerWeb color palette with animated attack arcs from the attacker's country to your infrastructure
-- Heat glow under the most aggressive countries
-- Live feed of blocked requests (IP, country flag, targeted service, block reason)
-- Stat cards: attacks and unique IPs over the last 24 hours, top origin country, tracked events
-- Top attacking countries and block reasons charts
-- Live polling every 10 seconds through the plugin action endpoint
-- Country drill-down: click a country on the map (or in the top-countries chart) to see its top attacker IPs and ban any of them via the UI's ban API, choosing duration (1h / 24h / 7d / permanent) and scope (global / this service). The open panel auto-refreshes on the poll cycle and remembers IPs already banned this session.
-- Time window selector (1h / 24h / 7d / all) applied to the map heat, charts and drill-downs
-- Attacks-per-interval timeline sparkline under the map
-- Replay mode: re-animate the recorded attacks of the selected window
-- SOC fullscreen mode: wall-monitor view with overlay stat chips, embedded attack feed and auto-cycling country highlights
-- Demo mode button to preview the animation when no attack has been recorded yet
+- **Reports**: the blocked-request reports of the metrics plugin, through the same Redis-backed query as the Reports page (`get_reports_query`), with a fallback to the per-instance in-memory buffers. Duplicates and future timestamps are dropped.
+- **Countries**: the country BunkerWeb resolved at request time with its GeoIP database (`LOCAL` = private address, `UNKNOWN` = failed lookup).
+- **Blocked vs detected**: the `security_mode` stored with each report. Requests of services in `SECURITY_MODE=detect` are counted apart and drawn with dashed arcs.
+- **Bans**: the ban state is read from the instances and bans go through the UI's own ban helper. The result names the instances where a ban failed.
 
-Data comes from the reports (blocked requests) already collected by BunkerWeb instances via the metrics plugin, so no extra agent or job is needed. The `USE_METRICS` setting must stay enabled (it is by default).
+Statistics cover every stored report. The footer of the map shows the source (Redis or in-memory), how far back it goes, and whether the Redis buffer is full. Without Redis, reports live in each worker's memory (`METRICS_MAX_BLOCKED_REQUESTS`, 1,000 by default) and are cleared on reload. Enable the Redis plugin to keep history (`METRICS_MAX_BLOCKED_REQUESTS_REDIS`, 10,000 by default) and make the 7-day window meaningful.
 
-Reports live in each instance's shared memory and are therefore cleared on a configuration reload. Enabling the **Redis** plugin (`USE_REDIS=yes` + `REDIS_HOST`) makes them persistent: the plugin reads through the same Redis-backed query the official Reports page uses, so history survives reloads and the 7-day window becomes meaningful. Without Redis it falls back transparently to the in-memory per-instance reports.
+## Requirements
 
-The plugin caches the report fetch for a few seconds (shared across polls, window switches and drill-downs) so opening several browser tabs or many instances does not multiply the load on the instance/Redis query. Animations honor the operating system's "reduce motion" setting.
+- BunkerWeb 1.6.12 or later (tested on 1.6.17) with the web UI, and `USE_METRICS=yes` (the default).
+- Live updates, drill-downs and bans are POST actions, which BunkerWeb allows for admin accounts only. Other accounts see a snapshot taken at page load.
 
 ## Installation
 
 Like any other external plugin (see the [plugins documentation](https://docs.bunkerweb.io/latest/plugins/)):
 
-### Docker / Autoconf
+- `EXTERNAL_PLUGIN_URLS=https://github.com/ssnrshnn/threatMapPlugin/releases/latest/download/threatmap.tar.gz`, or
+- copy this `threatmap` folder into the volume mounted on `/data/plugins` of the scheduler (Docker) or into `/etc/bunkerweb/plugins` (Linux).
 
-Copy the `threatmap` folder into the volume mounted on `/data/plugins` of the scheduler container:
-
-```bash
-cp -r threatmap /path/to/bw-data/plugins/
-```
-
-or use the `EXTERNAL_PLUGIN_URLS` setting with an URL pointing to a tar.gz archive of the plugin.
-
-### Linux
-
-```bash
-cp -r threatmap /etc/bunkerweb/plugins/
-systemctl restart bunkerweb-scheduler
-```
-
-Once the scheduler has loaded the plugin, open the web UI → **Plugins** → **Threat Map**.
+Restart the scheduler and the web UI, then open **Plugins → Threat Map**.
 
 ## Settings
 
-| Setting                 | Default     | Context | Description                                                        |
-| ----------------------- | ----------- | ------- | ------------------------------------------------------------------ |
-| `USE_THREAT_MAP`        | `yes`       | global  | Enable the threat map page in the web UI.                          |
-| `THREAT_MAP_MAX_EVENTS` | `200`       | global  | Maximum number of recent blocked requests sent to the browser.     |
-| `THREAT_MAP_HOME_LAT`   | `48.86`     | global  | Latitude of your infrastructure (target of the attack arcs).       |
-| `THREAT_MAP_HOME_LON`   | `2.35`      | global  | Longitude of your infrastructure (target of the attack arcs).      |
-| `THREAT_MAP_HOME_LABEL` | `BunkerWeb` | global  | Label displayed next to the home marker on the map.                |
+| Setting                 | Default     | Context | Description                                                                                                                              |
+| ----------------------- | ----------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `USE_THREAT_MAP`        | `yes`       | global  | Enable the threat map page in the web UI.                                                                                                |
+| `THREAT_MAP_MAX_EVENTS` | `200`       | global  | Recent blocked requests sent to the browser for the animation, the feed and replays (clamped to 1 to 2,000). Statistics are not limited. |
+| `THREAT_MAP_HOME_LAT`   | `48.86`     | global  | Latitude (-90 to 90) of your infrastructure, where the arcs land.                                                                        |
+| `THREAT_MAP_HOME_LON`   | `2.35`      | global  | Longitude (-180 to 180) of your infrastructure, where the arcs land.                                                                     |
+| `THREAT_MAP_HOME_LABEL` | `BunkerWeb` | global  | Label shown next to the home marker (up to 32 characters).                                                                               |
